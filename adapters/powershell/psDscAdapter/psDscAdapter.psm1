@@ -153,7 +153,7 @@ function FindAndParseResourceDefinitions {
 function GetExportMethod ($ResourceType, $HasFilterProperties, $ResourceTypeName) {
     $methods = $ResourceType.GetMethods() | Where-Object { $_.Name -eq 'Export' }
     $method = $null
-
+    
     if ($HasFilterProperties) {
         "Properties provided for filtered export" | Write-DscTrace -Operation Trace
         $method = foreach ($mt in $methods) {
@@ -162,7 +162,7 @@ function GetExportMethod ($ResourceType, $HasFilterProperties, $ResourceTypeName
                 break
             }
         }
-
+        
         if ($null -eq $method) {
             "Export method with parameters not implemented by resource '$ResourceTypeName'. Filtered export is not supported." | Write-DscTrace -Operation Error
             exit 1
@@ -176,13 +176,13 @@ function GetExportMethod ($ResourceType, $HasFilterProperties, $ResourceTypeName
                 break
             }
         }
-
+        
         if ($null -eq $method) {
             "Export method not implemented by resource '$ResourceTypeName'" | Write-DscTrace -Operation Error
             exit 1
         }
     }
-
+    
     return $method
 }
 
@@ -394,28 +394,17 @@ function Invoke-DscCacheRefresh {
 function Get-DscResourceObject {
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        $jsonInput,
-        [Parameter(Mandatory = $false)]
-        $type
+        $jsonInput
     )
     # normalize the INPUT object to an array of dscResourceObject objects
     $inputObj = $jsonInput | ConvertFrom-Json
-    if ($type) {
-        $desiredState = [dscResourceObject]@{
-            name       = ''
-            type       = $type
-            properties = $inputObj
-        }
-    }
-    else {
-        $desiredState = [System.Collections.Generic.List[Object]]::new()
+    $desiredState = [System.Collections.Generic.List[Object]]::new()
 
-        $inputObj.resources | ForEach-Object -Process {
-            $desiredState += [dscResourceObject]@{
-                name       = $_.name
-                type       = $_.type
-                properties = $_.properties
-            }
+    $inputObj.resources | ForEach-Object -Process {
+        $desiredState += [dscResourceObject]@{
+            name       = $_.name
+            type       = $_.type
+            properties = $_.properties
         }
     }
 
@@ -474,11 +463,40 @@ function Invoke-DscOperation {
                             $validateProperty = $cachedDscResourceInfo.Properties | Where-Object -Property Name -EQ $_.Name
                             if ($_.Value -is [System.Management.Automation.PSCustomObject]) {
                                 if ($validateProperty -and $validateProperty.PropertyType -in @('PSCredential', 'System.Management.Automation.PSCredential')) {
-                                    if (-not $_.Value.Username -or -not $_.Value.Password) {
-                                        "Credential object '$($_.Name)' requires both 'username' and 'password' properties" | Write-DscTrace -Operation Error
+                                $hasSecureCred =
+                                    $_.Value.secureObject.Username -and
+                                    $_.Value.secureObject.Password
+
+                                $hasTextCred =
+                                    $_.Value.Username -and
+                                    $_.Value.Password
+
+                                    if (-not $hasSecureCred -and -not $hasTextCred) {
+                                        "Credential object '$($_.Name)' requires both 'username' and 'password' properties" |
+                                            Write-DscTrace -Operation Error
                                         exit 1
                                     }
-                                    $dscResourceInstance.$($_.Name) = [System.Management.Automation.PSCredential]::new($_.Value.Username, (ConvertTo-SecureString -AsPlainText $_.Value.Password -Force))
+
+                                    if ($hasSecureCred) {
+                                    "Credential object '$($_.Name)' - SecureObject" | Write-DscTrace -Operation Info
+
+                                        $username = $_.Value.secureObject.Username
+                                        $password = $_.Value.secureObject.Password |
+                                            ConvertTo-SecureString -AsPlainText -Force
+
+                                        $dscResourceInstance.$($_.Name) =
+                                            [System.Management.Automation.PSCredential]::new($username, $password)
+                                    }
+                                    elseif ($hasTextCred) {
+                                        "Credential object '$($_.Name)' - Text" | Write-DscTrace -Operation Info
+
+                                        $username = $_.Value.Username
+                                        $password = $_.Value.Password |
+                                            ConvertTo-SecureString -AsPlainText -Force
+
+                                        $dscResourceInstance.$($_.Name) =
+                                            [System.Management.Automation.PSCredential]::new($username, $password)
+                                    }
                                 }
                                 else {
                                     $dscResourceInstance.$($_.Name) = $_.Value.psobject.properties | ForEach-Object -Begin { $propertyHash = @{} } -Process { $propertyHash[$_.Name] = $_.Value } -End { $propertyHash }
@@ -486,7 +504,7 @@ function Invoke-DscOperation {
                             }
                             else {
                                 if ($validateProperty -and $validateProperty.PropertyType -in @('SecureString', 'System.Security.SecureString') -and -not [string]::IsNullOrEmpty($_.Value)) {
-                                    $dscResourceInstance.$($_.Name) = ConvertTo-SecureString -AsPlainText $_.Value -Force
+                                    $dscResourceInstance.$($_.Name) = ConvertTo-SecureString -AsPlainText $_.Value -Force   
                                 } else {
                                     $dscResourceInstance.$($_.Name) = $_.Value
                                 }
@@ -498,7 +516,7 @@ function Invoke-DscOperation {
                         'Get' {
                             $Result = @{}
                             $raw_obj = $dscResourceInstance.Get()
-                            $ValidProperties | ForEach-Object {
+                            $ValidProperties | ForEach-Object { 
                                 if ($raw_obj.$_ -is [System.Enum]) {
                                     $Result[$_] = $raw_obj.$_.ToString()
 
@@ -518,7 +536,7 @@ function Invoke-DscOperation {
                         }
                         'Export' {
                             $t = $dscResourceInstance.GetType()
-                            $hasFilter = $null -ne $DesiredState.properties -and
+                            $hasFilter = $null -ne $DesiredState.properties -and 
                             ($DesiredState.properties.PSObject.Properties | Measure-Object).Count -gt 0
 
                             $method = GetExportMethod -ResourceType $t -HasFilterProperties $hasFilter -ResourceTypeName $DesiredState.Type
@@ -532,12 +550,12 @@ function Invoke-DscOperation {
 
                             foreach ($raw_obj in $raw_obj_array) {
                                 $Result_obj = @{}
-                                $ValidProperties | ForEach-Object {
+                                $ValidProperties | ForEach-Object { 
                                     if ($raw_obj.$_ -is [System.Enum]) {
                                         $Result_obj[$_] = $raw_obj.$_.ToString()
                                     }
-                                    else {
-                                        $Result_obj[$_] = $raw_obj.$_
+                                    else { 
+                                        $Result_obj[$_] = $raw_obj.$_ 
                                     }
                                 }
                                 $resultArray += $Result_obj

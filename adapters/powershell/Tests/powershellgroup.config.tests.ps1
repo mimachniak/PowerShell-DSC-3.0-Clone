@@ -247,70 +247,67 @@ Describe 'PowerShell adapter resource tests' {
     $out.results.result.actualState.result.properties.HashTableProp.Name | Should -BeExactly 'DSCv3'
   }
 
-  It 'Config calling PS Resource directly works for <operation> with metadata <metadata> and adapter <adapter>' -TestCases @(
-    @{ Operation = 'get'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.DSC/PowerShell' }
-    @{ Operation = 'set'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.DSC/PowerShell' }
-    @{ Operation = 'test'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.DSC/PowerShell' }
-    @{ Operation = 'get'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Adapter/PowerShell' }
-    @{ Operation = 'set'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Adapter/PowerShell' }
-    @{ Operation = 'test'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Adapter/PowerShell' }
-    @{ Operation = 'get'; metadata = 'Ignored' }
-    @{ Operation = 'set'; metadata = 'Ignored' }
-    @{ Operation = 'test'; metadata = 'Ignored' }
+  It 'Config calling PS Resource directly works for <operation>' -TestCases @(
+    @{ Operation = 'get' }
+    @{ Operation = 'set' }
+    @{ Operation = 'test' }
   ) {
-    param($Operation, $metadata, $adapter)
+    param($Operation)
 
     $yaml = @"
             `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
             resources:
             - name: Class-resource Info
               type: TestClassResource/TestClassResource
-              metadata:
-                ${metadata}:
-                  requireAdapter: $adapter
               properties:
                 Name: 'TestClassResource1'
                 HashTableProp:
                   Name: 'DSCv3'
-                Prop1: foo
 "@
+
     $out = dsc -l trace config $operation -i $yaml 2> $TestDrive/tracing.txt
     $text = $out | Out-String
     $out = $out | ConvertFrom-Json
     $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
     switch ($Operation) {
       'get' {
-        $out.results[0].result.actualState.Name | Should -BeExactly 'TestClassResource1' -Because ("$text`n" + (Get-Content -Raw -Path $TestDrive/tracing.txt))
+        $out.results[0].result.actualState.Name | Should -BeExactly 'TestClassResource1' -Because $text
       }
       'set' {
         $out.results[0].result.beforeState.Name | Should -BeExactly 'TestClassResource1' -Because $text
         $out.results[0].result.afterState.Name | Should -BeExactly 'TestClassResource1' -Because $text
       }
       'test' {
-        $out.results[0].result.inDesiredState | Should -BeFalse -Because $text
+        $out.results[0].result.actualState.InDesiredState | Should -BeFalse -Because $text
       }
-    }
-    if ($metadata -eq 'Microsoft.DSC') {
-      "$TestDrive/tracing.txt" | Should -FileContentMatch "Invoking $Operation for '$adapter'" -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
     }
   }
 
   It 'Config works with credential object' {
     $yaml = @"
         `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+        parameters:
+          Credential:
+            type: secureObject
+            defaultValue:
+              username: User
+              password: Password
         resources:
-        - name: Class-resource Info
-          type: TestClassResource/TestClassResource
+        - name: Working with classic DSC resources
+          type: Microsoft.DSC/PowerShell
           properties:
-            Name: 'TestClassResource'
-            Credential:
-              UserName: 'User'
-              Password: 'Password'
+            resources:
+            - name: Class-resource Info
+              type: TestClassResource/TestClassResource
+              properties:
+                Name: TestClassResource1
+                Prop1: ValueForProp1
+                Credential: "[parameters('Credential')]"
 "@
     $out = dsc config get -i $yaml | ConvertFrom-Json
     $LASTEXITCODE | Should -Be 0
-    $out.results.result.actualstate.Credential.UserName | Should -Be 'User'
-    $out.results.result.actualState.result.Credential.Password.Length | Should -Not -BeNullOrEmpty
+    $out.results.result.actualstate.result.properties.Credential.UserName | Should -Be 'User'
+    $out.results.result.actualState.result.properties.Credential.Password.Length | Should -Not -BeNullOrEmpty
   }
 
   It 'Config does not work when credential properties are missing required fields' {

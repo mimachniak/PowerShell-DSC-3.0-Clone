@@ -280,33 +280,24 @@ function Invoke-DscCacheRefresh {
 function Get-DscResourceObject {
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        $jsonInput,
-        [Parameter(Mandatory = $false)]
-        $type
+        $jsonInput
     )
     # normalize the INPUT object to an array of dscResourceObject objects
     $inputObj = $jsonInput | ConvertFrom-Json
-    if ($type) {
-        $desiredState = [dscResourceObject]@{
-            name       = ''
-            type       = $type
-            properties = $inputObj
-        }
-    }
-    else {
-        $desiredState = [System.Collections.Generic.List[Object]]::new()
+    $desiredState = [System.Collections.Generic.List[Object]]::new()
 
-        $inputObj.resources | ForEach-Object -Process {
-            $desiredState += [dscResourceObject]@{
-                name       = $_.name
-                type       = $_.type
-                properties = $_.properties
-            }
+    # change the type from pscustomobject to dscResourceObject
+    $inputObj.resources | ForEach-Object -Process {
+        $desiredState += [dscResourceObject]@{
+            name       = $_.name
+            type       = $_.type
+            properties = $_.properties
         }
     }
 
     return $desiredState
 }
+
 
 # Get the actual state using DSC Get method from any type of DSC resource
 function Invoke-DscOperation {
@@ -374,11 +365,41 @@ function Invoke-DscOperation {
                         $validateProperty = $cachedDscResourceInfo.Properties | Where-Object -Property Name -EQ $_.Name
                         Write-DscTrace -Operation Debug -Message "Property type: $($validateProperty.PropertyType)"
                         if ($validateProperty -and $validateProperty.PropertyType -eq '[PSCredential]') {
-                            if (-not $_.Value.Username -or -not $_.Value.Password) {
-                                "Credential object '$($_.Name)' requires both 'username' and 'password' properties" | Write-DscTrace -Operation Error
+
+                            $hasSecureCred =
+                                $_.Value.secureObject.Username -and
+                                $_.Value.secureObject.Password
+
+                            $hasTextCred =
+                                $_.Value.Username -and
+                                $_.Value.Password
+
+                            if (-not $hasSecureCred -and -not $hasTextCred) {
+                                "Credential object '$($_.Name)' requires both 'username' and 'password' properties" |
+                                    Write-DscTrace -Operation Error
                                 exit 1
                             }
-                            $property.$($_.Name) = [System.Management.Automation.PSCredential]::new($_.Value.Username, (ConvertTo-SecureString -AsPlainText $_.Value.Password -Force))
+
+                            if ($hasSecureCred) {
+                                "Credential object '$($_.Name)' - SecureObject" | Write-DscTrace -Operation Info
+
+                                $username = $_.Value.secureObject.Username
+                                $password = $_.Value.secureObject.Password |
+                                    ConvertTo-SecureString -AsPlainText -Force
+
+                                $property.$($_.Name) =
+                                    [System.Management.Automation.PSCredential]::new($username, $password)
+                            }
+                            elseif ($hasTextCred) {
+                                "Credential object '$($_.Name)' - Text" | Write-DscTrace -Operation Info
+
+                                $username = $_.Value.Username
+                                $password = $_.Value.Password |
+                                    ConvertTo-SecureString -AsPlainText -Force
+
+                                $property.$($_.Name) =
+                                    [System.Management.Automation.PSCredential]::new($username, $password)
+                            }
                         } else {
                             $property.$($_.Name) = $_.Value.psobject.properties | ForEach-Object -Begin { $propertyHash = @{} } -Process { $propertyHash[$_.Name] = $_.Value } -End { $propertyHash }
                         }
@@ -428,11 +449,43 @@ function Invoke-DscOperation {
                                 $validateProperty = $cachedDscResourceInfo.Properties | Where-Object -Property Name -EQ $_.Name
                                 Write-DscTrace -Operation Debug -Message "Property type: $($validateProperty.PropertyType)"
                                 if ($validateProperty.PropertyType -eq 'PSCredential') {
-                                    if (-not $_.Value.Username -or -not $_.Value.Password) {
-                                        "Credential object '$($_.Name)' requires both 'username' and 'password' properties" | Write-DscTrace -Operation Error
-                                        exit 1
-                                    }
-                                    $dscResourceInstance.$($_.Name) = [System.Management.Automation.PSCredential]::new($_.Value.Username, (ConvertTo-SecureString -AsPlainText $_.Value.Password -Force))
+                                
+                                $hasSecureCred =
+                                    $_.Value.secureObject.Username -and
+                                    $_.Value.secureObject.Password
+
+                                $hasTextCred =
+                                    $_.Value.Username -and
+                                    $_.Value.Password
+
+                                if (-not $hasSecureCred -and -not $hasTextCred) {
+                                    "$($_.Value)" | Write-DscTrace -Operation Warn
+                                    "Credential object '$($_.Name)' requires both 'username' and 'password' properties" |
+                                        Write-DscTrace -Operation Error
+                                    exit 1
+                                }
+
+                                 if ($hasSecureCred) {
+                                "Credential object '$($_.Name)' - SecureObject" | Write-DscTrace -Operation Info
+
+                                    $username = $_.Value.secureObject.Username
+                                    $password = $_.Value.secureObject.Password |
+                                        ConvertTo-SecureString -AsPlainText -Force
+
+                                    $dscResourceInstance.$($_.Name) =
+                                        [System.Management.Automation.PSCredential]::new($username, $password)
+                                }
+                                elseif ($hasTextCred) {
+                                    "Credential object '$($_.Name)' - Text" | Write-DscTrace -Operation Info
+
+                                    $username = $_.Value.Username
+                                    $password = $_.Value.Password |
+                                        ConvertTo-SecureString -AsPlainText -Force
+
+                                    $dscResourceInstance.$($_.Name) =
+                                        [System.Management.Automation.PSCredential]::new($username, $password)
+                                }
+
                                 } else {
                                     $dscResourceInstance.$($_.Name) = $_.Value.psobject.properties | ForEach-Object -Begin { $propertyHash = @{} } -Process { $propertyHash[$_.Name] = $_.Value } -End { $propertyHash }
                                 }
@@ -446,7 +499,7 @@ function Invoke-DscOperation {
                         'Get' {
                             $Result = @{}
                             $raw_obj = $dscResourceInstance.Get()
-                            $ValidProperties | ForEach-Object {
+                            $ValidProperties | ForEach-Object { 
                                 if ($raw_obj.$_ -is [System.Enum]) {
                                     $Result[$_] = $raw_obj.$_.ToString()
                                 } else {
@@ -468,11 +521,11 @@ function Invoke-DscOperation {
                             $raw_obj_array = $method.Invoke($null, $null)
                             foreach ($raw_obj in $raw_obj_array) {
                                 $Result_obj = @{}
-                                $ValidProperties | ForEach-Object {
+                                $ValidProperties | ForEach-Object { 
                                     if ($raw_obj.$_ -is [System.Enum]) {
                                         $Result_obj[$_] = $raw_obj.$_.ToString()
-                                    } else {
-                                        $Result_obj[$_] = $raw_obj.$_
+                                    } else { 
+                                        $Result_obj[$_] = $raw_obj.$_ 
                                     }
                                 }
                                 $resultArray += $Result_obj
