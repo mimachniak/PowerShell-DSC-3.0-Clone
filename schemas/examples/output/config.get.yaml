@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=../../v3.0/bundled/outputs/config/get.vscode.json
+#
+# Shows output from `dsc config get --path dsc/examples/osinfo_registry.dsc.yaml
+#
+metadata:
+  Microsoft.DSC:
+    version: 3.0.0
+    operation: get
+    executionType: actual
+    startDatetime: 2025-05-09T11:57:24.223992200-05:00
+    endDatetime: 2025-05-09T11:57:25.237202300-05:00
+    duration: PT1.0132101S
+    securityContext: restricted
+results:
+- metadata:
+    Microsoft.DSC:
+      duration: PT0.0391229S
+  name: os
+  type: Microsoft/OSInfo
+  result:
+    actualState:
+      $id: https://developer.microsoft.com/json-schemas/dsc/os_info/20230303/Microsoft.Dsc.OS_Info.schema.json
+      family: Windows
+      version: 10.0.26100
+      edition: Windows 11 Enterprise
+      bitness: '64'
+      architecture: x86_64
+- metadata:
+    Microsoft.DSC:
+      duration: PT0.1583279S
+  name: windows product name
+  type: Microsoft.Windows/Registry
+  result:
+    actualState:
+      keyPath: HKLM\Software\Microsoft\Windows NT\CurrentVersion
+      valueName: ProductName
+      valueData:
+        String: Windows 10 Enterprise
+- metadata:
+    Microsoft.DSC:
+      duration: PT0.049571S
+  name: system root
+  type: Microsoft.Windows/Registry
+  result:
+    actualState:
+      keyPath: HKLM\Software\Microsoft\Windows NT\CurrentVersion
+      valueName: SystemRoot
+      valueData:
+        String: C:\WINDOWS
+messages: []
+hadErrors: false

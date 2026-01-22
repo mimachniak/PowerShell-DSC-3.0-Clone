@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://json-schema.org/draft/2020-12/schema
+$schema: https://json-schema.org/draft/2020-12/schema
+$id:     <HOST>/<PREFIX>/<VERSION>/definitions/semver.yaml
+
+type: string
+title: Semantic Version
+description: |
+  A valid semantic version (semver) string.
+
+  For reference, see https://semver.org/
+pattern: >-
+  ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+patternErrorMessage: | # VS Code only
+  Invalid value, must be a semantic version like `<major>.<minor>.<patch>`, such as `1.2.3`.
+
+  The value may also include pre-release version information and build metadata.
+
+$comment: |
+  A valid semantic version ([semver][01]) string.
+
+  This value uses the [suggested regular expression][02] to validate whether the string is valid
+  semver. This is the same pattern, made multi-line for easier readability:
+
+  ```regex
+  ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)
+  (?:-(
+    (?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)
+    (?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))
+  *))?
+  (?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+  ```
+
+  The first line matches the `major.minor.patch` components of the version. The middle lines match
+  the pre-release components. The last line matches the build metadata component.
+
+  [01]: https://semver.org/
+  [02]: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string

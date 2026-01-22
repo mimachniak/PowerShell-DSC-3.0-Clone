@@ -1,0 +1,13 @@
+[package]
+name = "test_group_resource"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# external dependencies
+clap = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# workspace crate dependencies
+dsc-lib = { workspace = true }

@@ -1,0 +1,12 @@
+build/
+target/
+bin/
+.DS_Store
+*.msix
+
+# Generated files for tree-sitter
+grammars/**/bindings/
+grammars/**/src/
+grammars/**/parser.*
+tree-sitter-ssh-server-config/
+tree-sitter-dscexpression/

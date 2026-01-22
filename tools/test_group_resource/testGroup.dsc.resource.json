@@ -1,0 +1,29 @@
+{
+    "$schema": "https://aka.ms/dsc/schemas/v3/bundled/resource/manifest.json",
+    "type": "Test/TestGroup",
+    "kind": "adapter",
+    "version": "0.1.0",
+    "get": {
+        "executable": "test_group_resource",
+        "args": [
+            "get"
+        ]
+    },
+    "schema": {
+        "command": {
+            "executable": "test_group_resource",
+            "args": [
+                "schema"
+            ]
+        }
+    },
+    "adapter": {
+        "list": {
+            "executable": "test_group_resource",
+            "args": [
+                "list"
+            ]
+        },
+        "config": "sequence"
+    }
+}

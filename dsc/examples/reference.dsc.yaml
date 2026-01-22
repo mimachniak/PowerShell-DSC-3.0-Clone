@@ -1,0 +1,12 @@
+# Simple example showing how to reference output from a resource to use in another
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+resources:
+- name: os
+  type: Microsoft/OSInfo
+  properties: {}
+- name: Echo
+  type: Microsoft.DSC.Debug/Echo
+  properties:
+    output: "[concat('The OS is ', reference(resourceId('Microsoft/OSInfo','os')).family)]"
+  dependsOn:
+  - "[resourceId('Microsoft/OSInfo','os')]"

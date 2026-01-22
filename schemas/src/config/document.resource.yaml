@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=https://json-schema.org/draft/2020-12/schema
+$schema:     https://json-schema.org/draft/2020-12/schema
+$id:         <HOST>/<PREFIX>/<VERSION>/config/document.resource.yaml
+title:       DSC resource instance
+description: Defines an instance of a DSC resource in a configuration.
+
+type: object
+required:
+  - type
+  - name
+properties:
+  type:
+    $ref: /<PREFIX>/<VERSION>/definitions/resourceType.yaml
+  name:
+    $ref: /<PREFIX>/<VERSION>/definitions/instanceName.yaml
+  dependsOn:
+    title: Instance depends on
+    description: >-
+      Defines a list of DSC resource instances that DSC must successfully process before processing
+      this instance. Each value for this property must be the `resourceID()` lookup for another
+      instance in the configuration. Multiple instances can depend on the same instance, but every
+      dependency for an instance must be unique in that instance's `dependsOn` property.
+    type: array
+    items:
+      type: string
+      uniqueItems: true
+      pattern: ^\[resourceId\(\s*'\w+(\.\w+){0,2}\/\w+'\s*,\s*'[a-zA-Z0-9 ]+'\s*\)\]$
+      # VS Code only
+      patternErrorMessage: |
+        Invalid value, must be a value like `[resourceId('<type>', '<name>`)], such as
+        `[resourceId('Microsoft/OSInfo', 'Foo')]`.
+
+        The `<type>` and `<name>` should be the fully qualified type of the resource and its
+        friendly name in the configuration.
+      defaultSnippets:
+        - label: ' New dependency'
+          markdownDescription: |-
+            Defines a new dependency for the resource instance.
+
+            ```yaml
+            "[resourceId('dependencyInstance/Type', 'dependencyInstanceName')]"
+            ```
+          bodyText: >-
+            "[resourceId('${3:dependencyInstance/Type}', '${4:dependencyInstanceName}')]"
+    markdownDescription: |
+      ***
+      [_Online Documentation_][01]
+      ***
+
+      Defines a list of DSC resource instances that DSC must successfully process before processing
+      this instance. Each value for this property must be the `resourceID()` lookup for another
+      instance in the configuration. Multiple instances can depend on the same instance, but every
+      dependency for an instance must be unique in that instance's `dependsOn` property.
+
+      The `resourceID()` function uses this syntax:
+
+      ```yaml
+      "[resourceId('<resource-type-name>', '']<instance-name>"
+      ```
+
+      The `<resource-type-name>` value is the `type` property of the dependent resource and
+      `<instance-name>` is the dependency's `name` property. When adding a dependency in a
+      YAML-format configuration document, always wrap the `resourceID()` lookup in double quotes
+      (`"`).
+
+      [01]: <DOCS_BASE_URL>/reference/schemas/config/resource?<DOCS_VERSION_PIN>#properties-1
+  properties:
+    title: Managed instance properties
+    description: >-
+      Defines the properties of the DSC resource this instance manages. This property's value must
+      be an object. DSC validates the property's value against the DSC resource's schema.
+    type: object
+    # VS Code only
+    markdownDescription: |
+      ***
+      [_Online Documentation_][01]
+      ***
+
+      Defines the properties of the DSC resource this instance manages. This property's value must
+      be an object. DSC validates the property's value against the DSC resource's schema.
+
+      [01]: <DOCS_BASE_URL>/reference/schemas/config/resource?<DOCS_VERSION_PIN>#properties-1
+
+# VS Code only
+markdownDescription: |
+  ***
+  [_Online Documentation_][01]
+  ***
+
+  Defines an instance of a DSC resource in a configuration.
+
+  The `resources` property of a DSC configuration document always includes at least one DSC resource
+  instance. Together, the instances in a configuration define the desired state that DSC can get,
+  test, and set on a machine.
+
+  [01]: <DOCS_BASE_URL>/reference/schemas/config/resource?<DOCS_VERSION_PIN>
+
+defaultSnippets:
+  - label: ' New resource instance'
+    markdownDescription: |-
+      Defines a new instance of a DSC resource for the configuration.
+
+      ```yaml
+      type: owner[.group][.area]/name
+      name: instance_name
+      properties:
+        propertyName: propertyValue
+      ```
+    body:
+      type: ${1:owner[.group][.area]/name}
+      name: ${2:instance_name}
+      properties:
+        ${3:propertyName}: ${4:propertyValue}
+
+  - label: ' New dependent resource instance'
+    markdownDescription: |-
+      Defines a new instance of a DSC resource for the configuration that depends on another
+      instance.
+
+      ```yaml
+      type:      owner[.group][.area]/name
+      name:      instance_name
+      dependsOn:
+        - "[resourceId('dependencyInstance/Type', 'dependencyInstanceName')]"
+      properties:
+        propertyName: propertyValue
+      ```
+    body:
+      type:      ${1:owner[.group][.area]/name}
+      name:      ${2:instance_name}
+      dependsOn:
+        - >-
+            "[resourceId('${3:dependencyInstance/Type}', '${4:dependencyInstanceName}')]"
+      properties:
+        ${5:propertyName}: ${6:propertyValue}

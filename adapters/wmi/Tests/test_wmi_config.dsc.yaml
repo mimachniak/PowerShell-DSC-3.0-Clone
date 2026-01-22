@@ -1,0 +1,17 @@
+# Example configuration for reading data from Windows WMI
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+resources:
+- name: Get info from WMI
+  type: Microsoft.Windows/WMI
+  properties:
+    resources:
+    - name: Get OS Info
+      type: root.cimv2/Win32_OperatingSystem
+      properties:
+        caption:
+        version:
+        osarchitecture:
+    - name: Get BIOS Info
+      type: root.cimv2/Win32_BIOS
+    - name: Get Processor Info
+      type: root.cimv2/Win32_Processor

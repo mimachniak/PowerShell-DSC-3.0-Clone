@@ -1,0 +1,15 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+resources:
+- name: Working with classic DSC resources
+  type: Microsoft.DSC/PowerShell
+  properties:
+    resources:
+    - name: Class-resource Info
+      type: TestClassResource/TestClassResource
+      properties:
+        Name: TestClassResource1
+        Prop1: ValueForProp1
+        EnumProp: Expected

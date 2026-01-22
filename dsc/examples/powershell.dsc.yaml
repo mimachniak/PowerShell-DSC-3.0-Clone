@@ -1,0 +1,24 @@
+# Example configuration mixing native app resources with classic PS resources
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+metadata:
+  Microsoft.DSC:
+    securityContext: elevated
+resources:
+- name: Use class PowerShell resources
+  type: Microsoft.Windows/WindowsPowerShell
+  properties:
+    resources:
+    - name: OpenSSH service
+      type: PsDesiredStateConfiguration/Service
+      properties:
+        Name: sshd
+    - name: Administrator
+      type: PsDesiredStateConfiguration/User
+      properties:
+        UserName: administrator
+- name: current user registry
+  type: Microsoft.Windows/Registry
+  properties:
+    keyPath: HKLM\Software\Microsoft\Windows NT\CurrentVersion
+    valueName: ProductName
+    _exist: True

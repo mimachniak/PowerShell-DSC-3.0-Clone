@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://json-schema.org/draft/2020-12/schema
+$schema: https://json-schema.org/draft/2020-12/schema
+$id:     <HOST>/<PREFIX>/<VERSION>/outputs/resource/set.yaml
+
+title: dsc resource set result
+description: >-
+  Describes the return data for a DSC resource instance from the
+  `dsc resource set` command. The return data is either a single object that
+  describes the enforced state of a non-nested instance or an array of objects
+  that describe the enforced state of the nested instances for a group or
+  adapter resource.
+
+anyOf:
+  - $ref: /<PREFIX>/<VERSION>/outputs/resource/set.simple.yaml
+  - type: array
+    items:
+      $ref: /<PREFIX>/<VERSION>/outputs/resource/set.full.yaml

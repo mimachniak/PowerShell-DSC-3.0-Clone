@@ -1,0 +1,41 @@
+# Example for grouping and groups in groups
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+metadata:
+  Microsoft.DSC:
+    requiredSecurityContext: current # this is the default and just used as an example indicating this config works for admins and non-admins
+resources:
+- name: Last Group
+  type: Microsoft.DSC/Group
+  properties:
+    $schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+    resources:
+    - name: Last
+      type: Microsoft.DSC.Debug/Echo
+      properties:
+        output: Last
+  dependsOn:
+  - "[resourceId('Microsoft.DSC/Group','First Group')]"
+- name: First Group
+  type: Microsoft.DSC/Group
+  properties:
+    $schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+    resources:
+    - name: First
+      type: Microsoft.DSC.Debug/Echo
+      properties:
+        output: First
+    - name: Nested Group
+      type: Microsoft.DSC/Group
+      properties:
+        $schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+        resources:
+        - name: Nested Second
+          type: Microsoft.DSC.Debug/Echo
+          properties:
+            output: Nested Second
+          dependsOn:
+          - "[resourceId('Microsoft.DSC.Debug/Echo','Nested First')]"
+        - name: Nested First
+          type: Microsoft.DSC.Debug/Echo
+          properties:
+            output: Nested First

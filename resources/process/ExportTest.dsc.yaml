@@ -1,0 +1,7 @@
+# Example configuration mixing native app resources with classic PS resources
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+resources:
+- name: Processes
+  type: Microsoft/Process
+  properties:
+    pid: 0

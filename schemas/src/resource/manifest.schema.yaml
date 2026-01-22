@@ -1,0 +1,591 @@
+# yaml-language-server: $schema=https://json-schema.org/draft/2020-12/schema
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: <HOST>/<PREFIX>/<VERSION>/resource/manifest.schema.yaml
+
+title: Instance Schema
+description: >-
+  Defines how DSC must validate a JSON blob representing an instance of the DSC resource.
+
+# While the current implementation is somewhat confusing in the schema, I
+# think it's actually easier to document. Mainly, the complexity comes from
+# the expected object having exactly one property with exclusive key names.
+# If a DSC resource could specify a combination of these values, the schema
+# would be less complex.
+type: object
+oneOf:
+  - required: [command]
+  - required: [embedded]
+properties:
+  command:
+    title: Instance Schema Command
+    description: >-
+      Defines how DSC must call the DSC resource to get the JSON Schema for validating a JSON blob
+      representing an instance of the DSC resource.
+    type: object
+    required:
+      - executable
+    properties:
+      executable:
+        $ref: /<PREFIX>/<VERSION>/definitions/commandExecutable.yaml
+        markdownDescription: |
+          ***
+          [_Online Documentation_][01]
+          ***
+
+          Defines the name of the command to run. The value must be the name of a command discoverable
+          in the system's `PATH` environment variable or the full path to the command. A file extension
+          is only required when the command isn't recognizable by the operating system as an
+          executable.
+
+          [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>#executable
+      args:
+        type: array
+        items:
+          type: string
+        title: Command arguments
+        description: >-
+          Defines the list of arguments to pass to the command to return the JSON Schema for the
+          resource.
+        markdownDescription: |
+          ***
+          [_Online Documentation_][01]
+          ***
+
+          Defines an array of strings to pass as arguments to the command. DSC passes the arguments to
+          the command in the order they're specified.
+
+          For example, the given the following definition:
+
+          ```json
+          {
+            "executable": "myresource",
+            "args":       ["schema", "show"],
+          }
+          ```
+
+          DSC invokes the command for the resource as:
+
+          ```bash
+          myresource schema show
+          ```
+
+          [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>#args
+
+    # VS Code only
+    markdownDescription: |
+      ***
+      [_Online Documentation_][00]
+      ***
+
+      Defines how DSC must call the DSC resource to get the JSON Schema for validating a JSON blob
+      representing an instance of the DSC resource.
+
+      For more information about the output DSC expects the resource to emit for this command, see
+      [Schema resource command stdout][01].
+
+      [00]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>#command
+      [01]: <DOCS_BASE_URL>/reference/schemas/resource/stdout/schema?<DOCS_VERSION_PIN>
+    defaultSnippets:
+      - label: ' Define without arguments'
+        markdownDescription: |
+          Define the `schema` command for the resource when no arguments are required.
+        body:
+          executable: ${1:executable_name}
+
+      - label: ' Define with arguments'
+        markdownDescription: |
+          Define the `schema` command for the resource when at least one argument is required.
+        body:
+          executable: ${1:executable_name}
+          args:
+            - ${2:--first-argument}
+
+  embedded:
+    title: Embedded Instance Schema
+    description: >-
+      Defines the JSON Schema DSC must use to validate a JSON blob representing an instance of the
+      DSC resource.
+    markdownDescription: | # VS Code only
+      ***
+      [_Online Documentation_][01]
+      ***
+
+      Defines the JSON Schema DSC must use to validate a JSON blob representing an instance of the
+      DSC resource.
+
+      [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/embedded?<DOCS_VERSION_PIN>
+    type: object
+    required:
+      - $schema
+      - type
+      - properties
+    properties:
+      type:
+        title: Instance Type
+        description: >-
+          Defines the JSON type for an instance of the DSC resource. DSC resource instances always
+          have the `object` type.
+        # Ensures the DSC resource is always an object
+        const: object
+        markdownDescription: | # VS Code only
+          ***
+          [_Online Documentation_][01]
+          ***
+
+          Defines the JSON type for an instance of the DSC resource. DSC resource instances always
+          have the `object` type.
+
+          [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/embedded?<DOCS_VERSION_PIN>#type
+      $schema:
+        # Ensures the DSC resource always uses a schema we can understand
+        title: DSC resource instance schema dialect
+        description: >-
+          Defines which dialect of JSON Schema the DSC resource is using to validate instances.
+        type: string
+        format: uri-reference
+        enum:
+          - https://json-schema.org/draft/2020-12/schema
+          - https://json-schema.org/draft/2019-09/schema
+          - http://json-schema.org/draft-07/schema#
+        # VS Code only
+        markdownDescription: | # VS Code only
+          ***
+          [_Online Documentation_][01]
+          ***
+
+          Defines the JSON type for an instance of the DSC resource. DSC resource instances always
+          have the `object` type. DSC only supports JSON Schema Draft 07 and later.
+
+          [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/embedded?<DOCS_VERSION_PIN>#type
+        markdownEnumDescriptions:
+          - | # https://json-schema.org/draft/2020-12/schema
+              _Draft 2020-12 (recommended)_
+
+              > Indicates that the resource instance schema adheres to
+              > [JSON Schema Draft 2020-12][01].
+              >
+              > This is the latest published draft of JSON Schema and is the draft future drafts
+              > will be most compatible with.
+
+              [01]: https://json-schema.org/specification-links.html#2020-12
+          - | # https://json-schema.org/draft/2019-09/schema
+              _Draft 2019-09_
+
+              > Indicates that the resource instance schema adheres to
+              > [JSON Schema Draft 2019-09][01].
+              >
+              > This is the previous published draft of JSON Schema. It's mostly compatible with
+              > 2020-12, but less extensible and can't be bundled.
+
+              [01]: https://json-schema.org/specification-links.html#draft-2019-09-formerly-known-as-draft-8
+          - | # http://json-schema.org/draft-07/schema#
+              _Draft 07_
+
+              > Indicates that the resource instance schema adheres to [JSON Schema Draft 07][01].
+              >
+              > This is an older published draft of JSON Schema. It's widely used, but incompatible
+              > with 2019-09 and later. It's less expressive, extensible, maintainable, and isn't
+              > recommended for new schema definitions.
+
+              [01]: https://json-schema.org/specification-links.html#draft-7
+      $id:
+        title: DSC resource instance schema ID
+        description: >-
+          Defines the unique ID for the DSC resource's instance schema. If the instance schema is
+          published to its own public URI, set this keyword to that URI.
+        # Currently optional - maybe we should require this?
+        type: string
+        format: uri-reference
+        markdownDescription: |
+          ***
+          [_Online Documentation_][01]
+          ***
+
+          Defines the unique ID for the DSC resource's instance schema. If the instance schema is
+          published to its own public URI, set this keyword to that URI.
+
+          [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>#id
+
+      properties:
+        # Defines the property validation - requires authors to specify at
+        # least one property, ensures all unevaluated properties are of a kind
+        # we can understand, and makes the standard properties available to
+        # manifest authors.
+        title: Instance Properties
+        description: >-
+          Defines the properties that DSC can retrieve and manage for the resource's instances.
+          This keyword must define at least one property as a key-value pair. The key is the
+          property's name. The value is a subschema that validates the property.
+        markdownDescription: | # VS Code only
+          ***
+          [_Online Documentation_][01]
+          ***
+
+          Defines the properties that DSC can retrieve and manage for the resource's instances.
+          This keyword must define at least one property as a key-value pair. The key is the
+          property's name. The value is a subschema that validates the property.
+
+          [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>#properties
+        type: object
+        minProperties: 1
+        unevaluatedProperties:
+          anyOf:
+            - $ref: https://json-schema.org/draft/2020-12/schema
+            - $ref: https://json-schema.org/draft/2019-09/schema
+            - $ref: http://json-schema.org/draft-07/schema#
+        additionalProperties:
+          defaultSnippets: # VS Code only
+            - label: ' Define a property'
+              markdownDescription: Define a new property for the resource instance schema.
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                type:        ${3|boolean,string,integer,number,array,object,null|}
+
+            - label: ' Define a property (boolean)'
+              markdownDescription: |-
+                Define a new [boolean][01] property for the resource instance schema, requiring the
+                value to be either `true` or `false`.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/boolean.html
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                type:        boolean
+
+            - label: ' Define a property (string)'
+              markdownDescription: |-
+                Define a new [string][01] property for the resource instance schema, requiring the
+                value to be a blob of text.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/string.html
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                type:        string
+
+            - label: ' Define a property (integer)'
+              markdownDescription: |-
+                Define a new [integer][01] property for the resource instance schema, requiring the
+                value to be a number without a fractional part.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/numeric.html
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                type:        integer
+
+            - label: ' Define a property (number)'
+              markdownDescription: |-
+                Define a new [number][01] property for the resource instance schema, requiring the
+                value to be a number that may include a fractional part.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/numeric.html
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                type:        number
+
+            - label: ' Define a property (array)'
+              markdownDescription: |-
+                Define a new [array][01] property for the resource instance schema, requiring the
+                value to be a list of values.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/array.html
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                type:        array
+                items:
+                  type: ${3|boolean,string,integer,number,array,object,null|}
+
+            - label: ' Define a property (object)'
+              markdownDescription: |-
+                Define a new [object][01] property for the resource instance schema, requiring the
+                value to be a set of key-value pairs.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/object.html
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                type:        object
+                properties:
+                  ${3:propertyName}:
+                    title:       ${4:propertyTitle}
+                    description: ${5:explanation of property purpose and usage}
+                    type:        ${6|string,integer,number,array,object,null|}
+
+            - label: ' Define a property (enum)'
+              markdownDescription: |-
+                Define a new [enum][01] property for the resource instance schema that only accepts
+                a defined set of values.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/generic.html#enumerated-values
+              body:
+                title:       ${1:property title}
+                description: ${2:explanation of property purpose and usage}
+                enum:
+                  - ^${3:"first value"}
+                  - ^${4:"second value"}
+
+            - label: ' Define a property (const)'
+              markdownDescription: |-
+                Define a new [const][01] property for the resource instance schema that only
+                accepts a specific value.
+
+                [01]: https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values
+              body:
+                title:        ${1:property title}
+                description:  ${2:explanation of property purpose and usage}
+                const:       ^${3:"constant value"}
+
+        properties:
+          _exist:
+            title: 'Standard Property: _exist'
+            description: >-
+              Indicates that the DSC resource uses the standard `_exist` property to specify
+              whether an instance should exist as a boolean value that defaults to `true`.
+            enum:
+              - $ref: https://aka.ms/dsc/schemas/v3/resource/properties/exist.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1/resource/properties/exist.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1.0/resource/properties/exist.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0/resource/properties/exist.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.0/resource/properties/exist.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.1/resource/properties/exist.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.2/resource/properties/exist.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3/resource/properties/exist.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1/resource/properties/exist.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1.0/resource/properties/exist.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0/resource/properties/exist.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.0/resource/properties/exist.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.1/resource/properties/exist.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.2/resource/properties/exist.json
+            # VS Code only
+            markdownDescription: |
+              ***
+              [_Online Documentation_][01]
+              ***
+
+              Indicates that the resource can enforce whether instances exist, handling whether an
+              instance should be added, updated, or removed during a set operation. The default
+              value is `true`.
+
+              Resources that define this property declare that the implementation adheres to the
+              following behavior contract:
+
+              1. When the desired state for `_exist` is `true`, the resource expects the instance
+                 to exist. If it doesn't exist, the resource creates or adds the instance during
+                 the set operation.
+              1. When the desired state for `_exist` is `false`, the resource expects the instance
+                 to not exist. If it does exist, the resource deletes or removes the instance
+                 during the set operation.
+
+              [01]: <DOCS_BASE_URL>/reference/schemas/resource/properties/exist?<DOCS_VERSION_PIN>
+          _inDesiredState:
+            title: 'Standard Property: _inDesiredState'
+            description: >-
+              Indicates that the DSC resource returns this value for it's own `test` method. This
+              read-only property is mandatory when the manifest defines the `test` property. It
+              shouldn't be included if the DSC resource relies on DSC's synthetic testing.
+            enum:
+              - $ref: https://aka.ms/dsc/schemas/v3/resource/properties/inDesiredState.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1/resource/properties/inDesiredState.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1.0/resource/properties/inDesiredState.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0/resource/properties/inDesiredState.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.0/resource/properties/inDesiredState.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.1/resource/properties/inDesiredState.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.2/resource/properties/inDesiredState.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3/resource/properties/inDesiredState.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1/resource/properties/inDesiredState.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1.0/resource/properties/inDesiredState.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0/resource/properties/inDesiredState.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.0/resource/properties/inDesiredState.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.1/resource/properties/inDesiredState.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.2/resource/properties/inDesiredState.json
+            # VS Code only
+            markdownDescription: |
+              ***
+              [_Online Documentation_][01]
+              ***
+
+              Indicates that the DSC resource returns this value for it's own `test` method. This
+              property is mandatory when the manifest defines the `test` property. It shouldn't
+              be included if the DSC resource relies on DSC's synthetic testing.
+
+              [01]: <DOCS_BASE_URL>/reference/schemas/resource/properties/indesiredstate?<DOCS_VERSION_PIN>
+          _purge:
+            title: 'Standard Property: _purge'
+            description: >-
+              Indicates that the DSC resource uses the standard `_purge` property to specify
+              whether the DSC resource should remove all non-specified members when it manages
+              an array of members or values.
+            enum:
+              - $ref: https://aka.ms/dsc/schemas/v3/resource/properties/purge.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1/resource/properties/purge.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1.0/resource/properties/purge.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0/resource/properties/purge.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.0/resource/properties/purge.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.1/resource/properties/purge.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.2/resource/properties/purge.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3/resource/properties/purge.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1/resource/properties/purge.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1.0/resource/properties/purge.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0/resource/properties/purge.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.0/resource/properties/purge.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.1/resource/properties/purge.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.2/resource/properties/purge.json
+            # VS Code only
+            markdownDescription: |
+              ***
+              [_Online Documentation_][01]
+              ***
+
+              Indicates that the DSC resource uses the standard `_purge` property to specify
+              whether the DSC resource should remove all non-specified members when it manages
+              an array of members or values.
+
+              [01]: <DOCS_BASE_URL>/reference/schemas/resource/properties/purge?<DOCS_VERSION_PIN>
+          _rebootRequested:
+            title: 'Standard property: _rebootRequested'
+            description: >-
+              Indicates whether a resource instance requires a reboot after a set operation. To use
+              DSC's built-in reboot notification processing, resources must define this property in
+              their manifest.
+            enum:
+              - $ref: https://aka.ms/dsc/schemas/v3/resource/properties/rebootRequested.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1/resource/properties/rebootRequested.json
+              - $ref: https://aka.ms/dsc/schemas/v3.1.0/resource/properties/rebootRequested.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0/resource/properties/rebootRequested.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.0/resource/properties/rebootRequested.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.1/resource/properties/rebootRequested.json
+              - $ref: https://aka.ms/dsc/schemas/v3.0.2/resource/properties/rebootRequested.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3/resource/properties/rebootRequested.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1/resource/properties/rebootRequested.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.1.0/resource/properties/rebootRequested.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0/resource/properties/rebootRequested.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.0/resource/properties/rebootRequested.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.1/resource/properties/rebootRequested.json
+              - $ref: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/v3.0.2/resource/properties/rebootRequested.json
+            # VS Code only
+            markdownDescription: |
+              ***
+              [_Online Documentation_][01]
+              ***
+
+              Indicates that the DSC resource uses the standard `_rebootRequested` property to
+              report whether the machine should be rebooted after the `set` method executes.
+
+              [01]: <DOCS_BASE_URL>/reference/schemas/resource/properties/rebootrequested?<DOCS_VERSION_PIN>
+        defaultSnippets: # VS Code only
+          - label: ' Define an instance property'
+            markdownDescription: Define a property for the resource instance schema.
+            body:
+              ${1:propertyName}:
+                title:       ${2:property title}
+                description: ${3:explanation of property purpose and usage}
+                type:        ${4|string,integer,number,array,object,null|}
+
+examples:
+  - command:
+      executable: registry
+      args:
+        - schema
+  - embedded:
+      $schema: http://json-schema.org/draft-07/schema#
+      title: OSInfo
+      type: object
+      required: []
+      properties:
+        $id:
+          type: string
+        architecture:
+          type: [string, "null"]
+        bitness:
+          $ref: "#/definitions/Bitness"
+        codename:
+          type: [string, "null"]
+        edition:
+          type: [string, "null"]
+        family:
+          $ref: "#/definitions/Family"
+        version:
+          type: string
+      additionalProperties: false
+      definitions:
+        Bitness:
+          type: string
+          enum: ["32", "64", "unknown"]
+        Family:
+          type: string
+          enum: [Linux, macOS, Windows]
+
+# VS Code only
+markdownDescription: |
+  ***
+  [_Online Documentation_][01]
+  ***
+
+  Defines how DSC must validate a JSON blob representing an instance of the DSC resource.
+
+  The JSON schema can be defined dynamically with the `command` property or statically with the
+  `embedded` property.
+
+  For development purposes, it can be more convenient to use the `command` property and avoid
+  needing to adjust both the code and the schema.
+
+  Microsoft recommends using the `embedded` property when publishing a resource publicly. When the
+  manifest declares the schema with the `command` property, DSC calls the command at the beginning
+  of any operation using the resource, possibly impacting performance. The schema is also
+  unavailable to integrating tools when the resource isn't installed locally. When the schema is
+  embedded in the manifest, DSC and integrating tools only need the manifest itself.
+
+  [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>
+
+defaultSnippets: # VS Code only
+  - label: ' Define as command without arguments'
+    markdownDescription: |
+      ***
+      [_Online Documentation_][01]
+      ***
+
+      Define the resource instance schema as a command when no arguments are required.
+
+      [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>#command
+    body:
+      command:
+        executable: ${1:executable_name}
+
+  - label: ' Define as command with arguments'
+    markdownDescription: |
+      ***
+      [_Online Documentation_][01]
+      ***
+
+      Define the resource instance schema as a command when at least one argument is required.
+
+      [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/property?<DOCS_VERSION_PIN>#command
+    body:
+      command:
+        executable: ${1:executable_name}
+        args:
+          - ${2:--first-argument}
+
+  - label: ' Define as an embedded schema'
+    markdownDescription: |
+      ***
+      [_Online Documentation_][01]
+      ***
+
+      Define the resource instance schema embedded in the manifest. This is the preferred option
+      for publicly published resources.
+
+      [01]: <DOCS_BASE_URL>/reference/schemas/resource/manifest/schema/embedded?<DOCS_VERSION_PIN>
+    body:
+      embedded:
+        ${escape_dollar:$}schema: ${1|https://json-schema.org/draft/2020-12/schema,https://json-schema.org/draft/2019-09/schema,http://json-schema.org/draft-07/schema#|}
+        type:                     object
+        properties:
+          ${2:name}:
+            title:       ${3:property title}
+            description: ${4:explanation of property purpose and usage}
+            type:        ${5|string,integer,number,array,object,null|}

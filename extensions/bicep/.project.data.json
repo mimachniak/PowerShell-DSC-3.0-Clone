@@ -1,0 +1,10 @@
+{
+    "Name": "bicep",
+    "Kind": "Extension",
+    "CopyFiles": {
+        "All": [
+            "bicep.dsc.extension.json",
+            "bicepparams.dsc.extension.json"
+        ]
+    }
+}

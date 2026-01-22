@@ -1,0 +1,27 @@
+{
+    "rust-analyzer.showUnlinkedFileNotification": true,
+    "json.schemas": [
+        {
+            "fileMatch": ["**/*.dsc.resource.json"],
+            "url": "/schemas/v3/bundled/resource/manifest.vscode.json"
+        },
+        {
+            "fileMatch": ["build.data.json"],
+            "url": "./.vscode/schemas/build.data.json"
+        },
+        {
+            "fileMatch": ["**/.project.data.json"],
+            "url": "./.vscode/schemas/project.data.json"
+        }
+    ],
+    "yaml.schemas": {
+        "schemas/v3/bundled/config/document.vscode.json": "**.dsc.{yaml,yml,config.yaml,config.yml}",
+        "schemas/v3/bundled/resource/manifest.vscode.json": "**.dsc.resource.{yaml,yml}"
+    },
+    "sarif-viewer.connectToGithubCodeScanning": "off",
+    "vscode-nmake-tools.workspaceBuildDirectories": [
+        "."
+    ],
+    "azure-pipelines.1ESPipelineTemplatesSchemaFile": true,
+    "powershell.codeFormatting.preset": "OTBS"
+}
