@@ -8,5 +8,3 @@ bin/
 grammars/**/bindings/
 grammars/**/src/
 grammars/**/parser.*
-tree-sitter-ssh-server-config/
-tree-sitter-dscexpression/
