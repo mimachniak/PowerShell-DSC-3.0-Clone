@@ -652,8 +652,17 @@ function Install-Protobuf {
             if (Test-CommandAvailable -Name 'winget') {
                 Write-Verbose -Verbose "Using winget to install Protobuf"
                 winget install Google.Protobuf --accept-source-agreements --accept-package-agreements --source winget --silent
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Verbose -Verbose "winget install failed, falling back to choco"
+                    if (Test-CommandAvailable -Name 'choco') {
+                        choco install protoc -y
+                    }
+                }
+            } elseif (Test-CommandAvailable -Name 'choco') {
+                Write-Verbose -Verbose "Using choco to install Protobuf"
+                choco install protoc -y
             } else {
-                Write-Warning "winget not found, please install Protobuf manually"
+                Write-Warning "winget and choco not found, please install Protobuf manually"
             }
         } else {
             if (Test-CommandAvailable -Name 'apt') {
