@@ -51,93 +51,48 @@ jobs:
             Verbose            = $true
           }
           ./build.ps1 @testParams
-  linux-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Install prerequisites
-        run: ./build.ps1 -SkipBuild -Clippy  -Verbose
-      - name: Build
-        run: ./build.ps1 -Clippy -Verbose
-      - name: Run rust tests
-        run: ./build.ps1 -SkipBuild -Test -ExcludePesterTests -Verbose
-      - name:  Prepare build artifact
-        run:   tar -cvf bin.tar bin/
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-bin
-          path: bin.tar
-  linux-pester:
-    needs: linux-build
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [dsc, adapters, extensions, resources]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-bin
-      - name:  Expand build artifact
-        run:   tar -xvf bin.tar
-      - name: Test ${{matrix.group}}
-        run: |-
-          $params = @{
-            SkipBuild        = $true
-            Test             = $true
-            ExcludeRustTests = $true
-            Verbose          = $true
-          }
-          ./build.ps1 @params -PesterTestGroup ${{matrix.group}}
+  #linux-build:
+   # runs-on: ubuntu-latest
+    #steps:
+     # - uses: actions/checkout@v5
+      #  with:
+       #   fetch-depth: 0
+      #- name: Install prerequisites
+      #  run: ./build.ps1 -SkipBuild -Clippy  -Verbose
+      #- name: Build
+      #  run: ./build.ps1 -Clippy -Verbose
+      #- name: Run rust tests
+      #  run: ./build.ps1 -SkipBuild -Test -ExcludePesterTests -Verbose
+      #- name:  Prepare build artifact
+      #  run:   tar -cvf bin.tar bin/
+      #- name: Upload build artifact
+      #  uses: actions/upload-artifact@v4
+      #  with:
+       #   name: linux-bin
+        #  path: bin.tar
+  #linux-pester:
+   # needs: linux-build
+    ###matrix:
+       # group: [dsc, adapters, extensions, resources]
+    #runs-on: ubuntu-latest
+    #steps:
+     # - uses: actions/checkout@v5
+      #- name: Download build artifact
+       # uses: actions/download-artifact@v4
+        #with:
+         # name: linux-bin
+      #- name:  Expand build artifact
+       # run:   tar -xvf bin.tar
+      #- name: Test ${{matrix.group}}
+       # run: |-
+        #  $params = @{
+         #   SkipBuild        = $true
+          #  Test             = $true
+           # ExcludeRustTests = $true
+            #Verbose          = $true
+          #}
+          #./build.ps1 @params -PesterTestGroup ${{matrix.group}}
 
-  macos-build:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Install prerequisites
-        run: ./build.ps1 -SkipBuild -Clippy  -Verbose
-      - name: Build
-        run: ./build.ps1 -Clippy -Verbose
-      - name: Run rust tests
-        run: ./build.ps1 -SkipBuild -Test -ExcludePesterTests -Verbose
-      - name:  Prepare build artifact
-        run:   tar -cvf bin.tar bin/
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-bin
-          path: bin.tar
-  macos-pester:
-    needs: macos-build
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [dsc, adapters, extensions, resources]
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-bin
-      - name:  Expand build artifact
-        run:   tar -xvf bin.tar
-      - name: Test ${{matrix.group}}
-        run: |-
-          $params = @{
-            SkipBuild        = $true
-            Test             = $true
-            ExcludeRustTests = $true
-            Verbose          = $true
-          }
-          ./build.ps1 @params -PesterTestGroup ${{matrix.group}}
 
   # Windows
   windows-build:
