@@ -27,6 +27,8 @@ jobs:
     runs-on: ${{matrix.platform}}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Add WinGet links to PATH
         if: matrix.platform == 'windows-latest'
         run: |
@@ -53,6 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Install prerequisites
         run: ./build.ps1 -SkipBuild -Clippy  -Verbose
       - name: Build
@@ -95,6 +99,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Install prerequisites
         run: ./build.ps1 -SkipBuild -Clippy  -Verbose
       - name: Build
@@ -141,6 +147,8 @@ jobs:
         run: |
           "$env:LOCALAPPDATA\\Microsoft\\WinGet\\Links" | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_PATH
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Install Protobuf compiler
         run: choco install protoc -y
       - name: Install prerequisites
