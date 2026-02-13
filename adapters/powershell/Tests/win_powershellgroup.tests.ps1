@@ -298,29 +298,38 @@ class PSClassResource {
   # Script-based DSC resources are discovered by the WMI/CIM DSC engine, which only searches
   # the system-wide modules path. Install the test module there so CI machines can find it.
   $systemModulePath = Join-Path $env:ProgramFiles 'WindowsPowerShell' 'Modules'
+  $moduleBasePath = Join-Path $systemModulePath 'TestScriptBaseDSC'
+  $moduleVersionPath = Join-Path $moduleBasePath '0.0.1'
+  $credentialResourcePath = Join-Path (Join-Path $moduleVersionPath 'DSCResources') 'CredentialValidation'
 
-  $modulePathRootPSM1 = Join-Path $systemModulePath 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psm1'
+  foreach ($path in @($moduleBasePath, $moduleVersionPath, (Split-Path $credentialResourcePath), $credentialResourcePath)) {
+    if (-not (Test-Path -Path $path)) {
+      New-Item -Path $path -ItemType Directory -Force | Out-Null
+    }
+  }
+
+  $modulePathRootPSM1 = Join-Path $moduleVersionPath 'TestScriptBaseDSC.psm1'
     if (-not (Test-Path -Path $modulePathRootPSM1)) {
-    New-Item -Path $modulePathRootPSM1 -ItemType File -Value $moduleScriptRootPSM1 -Force | Out-Null
+    Set-Content -Path $modulePathRootPSM1 -Value $moduleScriptRootPSM1 -Force
   }
 
 
-  $modulePathRootPSD1 = Join-Path $systemModulePath 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psd1'
+  $modulePathRootPSD1 = Join-Path $moduleVersionPath 'TestScriptBaseDSC.psd1'
     if (-not (Test-Path -Path $modulePathRootPSD1)) {
-    New-Item -Path $modulePathRootPSD1 -ItemType File -Value $moduleFileScriptRootPSD1 -Force | Out-Null
+    Set-Content -Path $modulePathRootPSD1 -Value $moduleFileScriptRootPSD1 -Force
   }
 
 
-  $modulePathScriptCredentialValidationPSM1 = Join-Path $systemModulePath 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.psm1'
+  $modulePathScriptCredentialValidationPSM1 = Join-Path $credentialResourcePath 'CredentialValidation.psm1'
   if (-not (Test-Path -Path $modulePathScriptCredentialValidationPSM1)) {
     Write-Host "File will be created: $modulePathScriptCredentialValidationPSM1"
-    New-Item -Path $modulePathScriptCredentialValidationPSM1 -ItemType File -Value $moduleScriptCredentialValidationPSM1 -Force | Out-Null
+    Set-Content -Path $modulePathScriptCredentialValidationPSM1 -Value $moduleScriptCredentialValidationPSM1 -Force
   }
 
-  $modulePathScriptCredentialValidationSchemaMof = Join-Path $systemModulePath 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.schema.mof'
+  $modulePathScriptCredentialValidationSchemaMof = Join-Path $credentialResourcePath 'CredentialValidation.schema.mof'
   if (-not (Test-Path -Path $modulePathScriptCredentialValidationSchemaMof)) {
     Write-Host "File will be created: $modulePathScriptCredentialValidationSchemaMof"
-    New-Item -Path $modulePathScriptCredentialValidationSchemaMof -ItemType File -Value $moduleScriptCredentialValidationSchemaMof -Force | Out-Null
+    Set-Content -Path $modulePathScriptCredentialValidationSchemaMof -Value $moduleScriptCredentialValidationSchemaMof -Force
   }
 
     $env:PSModulePath = $windowsPowerShellPath + [System.IO.Path]::PathSeparator + $env:PSModulePath + [System.IO.Path]::PathSeparator
