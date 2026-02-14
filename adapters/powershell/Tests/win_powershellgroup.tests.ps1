@@ -457,8 +457,8 @@ resources:
 '@
 
 $out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | ConvertFrom-Json
-$LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
-$out.results[0].result.inDesiredState | Should -Be $inDesiredState
+$LASTEXITCODE | Should -Be 0 -Because ($out.results[0].result.inDesiredState | Should -Be $inDesiredState)
+
 }
 
 

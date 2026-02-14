@@ -1,0 +1,69 @@
+BUILD:   Executing build script
+BUILD:   Performing setup steps
+BUILD:   Performing setup steps::Determining rustup info
+BUILD:   Performing setup steps::Configuring Rust environment
+Caching current rust environment variables...
+No Rust environment variables defined
+Running verbose, setting RUSTC_LOG 
+BUILD:   Performing setup steps::Configuring Cargo environment
+Setting CARGO_SOURCE_crates-io_REPLACE_WITH to 'crates-io'
+BUILD:   Performing setup steps::Ensuring Rust is up-to-date
+Rust not found, installing...
+Requested HTTP/1.1 GET with 0-byte payload
+Received HTTP/1.1 13055743-byte response of content type application/x-msdownload
+File Name: rustup-init.exe
+Use the default settings to ensure build works
+warn: It looks like you have an existing rustup settings file at:
+warn: C:\Users\mmach\.rustup\settings.toml
+warn: Rustup will install the default toolchain as specified in the settings file,
+warn: instead of the one inferred from the default host triple.
+warn: installing msvc toolchain without its prerequisites
+info: profile set to 'default'
+info: default host triple is x86_64-pc-windows-msvc
+warn: Updating existing toolchain, profile choice will be ignored
+info: syncing channel updates for 'stable-x86_64-pc-windows-msvc'
+info: default toolchain set to 'stable-x86_64-pc-windows-msvc'
+
+  stable-x86_64-pc-windows-msvc unchanged - rustc 1.93.1 (01f6ddf75 2026-02-11)
+
+
+Rust is installed now. Great!
+
+To get started you may need to restart your current shell.
+This would reload its PATH environment variable to include
+Cargo's bin directory (%USERPROFILE%\.cargo\bin).
+BUILD:   Performing setup steps::Setting RustUp to default channel
+info: using existing install for 'stable-x86_64-pc-windows-msvc'
+info: default toolchain set to 'stable-x86_64-pc-windows-msvc'
+
+  stable-x86_64-pc-windows-msvc unchanged - rustc 1.93.1 (01f6ddf75 2026-02-11)
+
+BUILD:   Performing setup steps::Ensuring Protobuf is available
+Protobuf not found, installing...
+Using winget to install Protobuf
+
+   - 
+   \ 
+   | 
+                                                                                                                        
+
+   - 
+   \ 
+   | 
+   / 
+   - 
+                                                                                                                        
+Found an existing package already installed. Trying to upgrade the installed package...
+No available upgrade found.
+No newer package versions are available from the configured sources.
+winget install failed, falling back to choco
+Write-Error: An error occurred: Exception: Failed to install Protobuf
+
+
+BUILD:   Cleaning up
+BUILD:   Cleaning up::Restoring rust environment
+Resetting Rust environment...
+No Rust environment variables defined
+Reset rust environment
+No Rust environment variables defined
+Finished build script
