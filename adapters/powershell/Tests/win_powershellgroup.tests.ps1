@@ -340,7 +340,7 @@ class PSClassResource {
     New-Item -Path $modulePathScriptCredentialValidationSchemaMof -ItemType File -Value $moduleScriptCredentialValidationSchemaMof -Force | Out-Null
 
     # Always re-publish to ensure latest module files are available to Invoke-DscResource
-    Publish-TestModuleToAllUsers -SourcePath (Join-Path $windowsPowerShellPath 'PSClassResource')
+    #Publish-TestModuleToAllUsers -SourcePath (Join-Path $windowsPowerShellPath 'PSClassResource')
     Publish-TestModuleToAllUsers -SourcePath (Join-Path $windowsPowerShellPath 'TestScriptBaseDSC')
 
     $publishedPath = Join-Path $env:ProgramFiles 'WindowsPowerShell\Modules\TestScriptBaseDSC\0.0.1\TestScriptBaseDSC.psd1'
