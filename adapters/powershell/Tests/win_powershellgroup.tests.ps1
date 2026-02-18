@@ -427,13 +427,13 @@ resources:
 $outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
 
 # Ensure process exit code first
-$LASTEXITCODE | Should -Be 0 -Because "dsc should exit successfully. Check $testdrive\error1.log if it failed."
+$LASTEXITCODE | Should -Be 0 
 
 # Parse JSON safely
 try {
     $out = $outRaw | ConvertFrom-Json
 } catch {
-    Throw "Failed to parse dsc JSON output. Raw output:`n$outRaw`nError log:`n$(Get-Content -Raw "$testdrive/error1.log")"
+    Throw "Failed to parse dsc JSON output. Raw output:`n$outRaw`nError log:`n$(Get-Content -Raw "$testdrive/error.log")"
 }
 
 # Ensure results exist before indexing
