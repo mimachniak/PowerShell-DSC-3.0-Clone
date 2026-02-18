@@ -424,9 +424,25 @@ resources:
            Password: Password
 '@
 
-$out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | ConvertFrom-Json
-$LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
-$out.results[0].result.inDesiredState | Should -Be $inDesiredState
+$outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
+
+# Ensure process exit code first
+$LASTEXITCODE | Should -Be 0 -Because "dsc should exit successfully. Check $testdrive\error1.log if it failed."
+
+# Parse JSON safely
+try {
+    $out = $outRaw | ConvertFrom-Json
+} catch {
+    Throw "Failed to parse dsc JSON output. Raw output:`n$outRaw`nError log:`n$(Get-Content -Raw "$testdrive/error1.log")"
+}
+
+# Ensure results exist before indexing
+$out.results | Should -Not -BeNullOrEmpty -Because "dsc output should include results"
+
+# Assert the inDesiredState value
+$out.results[0].result.inDesiredState | Should -Be $inDesiredState -Because "resource should be in the desired state"
+
+
 }
 
 
