@@ -16,6 +16,10 @@ Describe 'WindowsPowerShell adapter resource tests - requires elevated permissio
     $dscHome = Split-Path (Get-Command dsc -ErrorAction Stop).Source -Parent
     # Use explicit path for Windows PowerShell to avoid ambiguity with PowerShell 7
     $psexeHome = Join-Path $env:SystemRoot 'System32' 'WindowsPowerShell' 'v1.0'
+    if (-not (Test-Path (Join-Path $psexeHome 'powershell.exe'))) {
+        # Fallback for 32-bit systems or WOW64
+        $psexeHome = Join-Path $env:SystemRoot 'SysWOW64' 'WindowsPowerShell' 'v1.0'
+    }
     $ps7exeHome = Split-Path (Get-Command pwsh -ErrorAction Stop).Source -Parent
     $env:DSC_RESOURCE_PATH = $dscHome + [System.IO.Path]::PathSeparator + $psexeHome + [System.IO.Path]::PathSeparator + $ps7exeHome
     $null = winrm quickconfig -quiet -force 2>&1
