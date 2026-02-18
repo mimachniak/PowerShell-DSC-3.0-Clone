@@ -12,12 +12,45 @@ BeforeDiscovery {
 Describe 'WindowsPowerShell adapter resource tests - requires elevated permissions' -Skip:(!$IsWindows -or !$isElevated) {
 
   BeforeAll {
+
     $OldPSModulePath = $env:PSModulePath
     $dscHome = Split-Path (Get-Command dsc -ErrorAction Stop).Source -Parent
     $psexeHome = Split-Path (Get-Command powershell -ErrorAction Stop).Source -Parent
     $ps7exeHome = Split-Path (Get-Command pwsh -ErrorAction Stop).Source -Parent
     $env:DSC_RESOURCE_PATH = $dscHome + [System.IO.Path]::PathSeparator + $psexeHome + [System.IO.Path]::PathSeparator + $ps7exeHome
     $windowsPowerShellPath = Join-Path $testDrive 'WindowsPowerShell' 'Modules'
+    # Separate staging root for class-based resources - must NOT share a parent with
+    # TestScriptBaseDSC, otherwise the WinPS adapter scans sibling folders and detects
+    # the temp copy as a stale cache entry, causing a duplicate CIM class conflict.
+    $classResourceStagingPath = Join-Path $testDrive 'ClassResourceStaging'
+
+    $script:AllUsersModuleCleanup = [System.Collections.Generic.List[string]]::new()
+    function Publish-TestModuleToAllUsers {
+        [CmdletBinding()]
+        param(
+            [Parameter(Mandatory)]
+            [string] $SourcePath
+        )
+
+        $allUsersModules = Join-Path $env:ProgramFiles 'WindowsPowerShell\Modules'
+        if (-not (Test-Path $allUsersModules)) {
+            New-Item -Path $allUsersModules -ItemType Directory -Force | Out-Null
+        }
+
+        $moduleName = Split-Path -Leaf $SourcePath
+        $destinationRoot = Join-Path $allUsersModules $moduleName
+
+        if (Test-Path $destinationRoot) {
+            Remove-Item -Path $destinationRoot -Recurse -Force
+        }
+
+        Copy-Item -Path $SourcePath -Destination $allUsersModules -Recurse -Force
+
+        if (-not $script:AllUsersModuleCleanup.Contains($destinationRoot)) {
+            $null = $script:AllUsersModuleCleanup.Add($destinationRoot)
+        }
+    }
+
     $moduleFile = @"
 @{
     RootModule           = 'PSClassResource.psm1'
@@ -46,10 +79,9 @@ Describe 'WindowsPowerShell adapter resource tests - requires elevated permissio
     }
 }
 "@
-    $moduleFilePath = Join-Path $windowsPowerShellPath 'PSClassResource' '0.1.0' 'PSClassResource.psd1'
-    if (-not (Test-Path -Path $moduleFilePath)) {
-      New-Item -Path $moduleFilePath -ItemType File -Value $moduleFile -Force | Out-Null
-    }
+    $moduleFilePath = Join-Path $classResourceStagingPath 'PSClassResource' '0.1.0' 'PSClassResource.psd1'
+    Write-Host "DSCFile will be created: $moduleFilePath"
+    New-Item -Path $moduleFilePath -ItemType File -Value $moduleFile -Force | Out-Null
 
     $module = @'
 enum Ensure {
@@ -113,10 +145,9 @@ class PSClassResource {
 }
 '@
 
-    $modulePath = Join-Path $windowsPowerShellPath 'PSClassResource' '0.1.0' 'PSClassResource.psm1'
-    if (-not (Test-Path -Path $modulePath)) {
-      New-Item -Path $modulePath -ItemType File -Value $module -Force | Out-Null
-    }
+    $modulePath = Join-Path $classResourceStagingPath 'PSClassResource' '0.1.0' 'PSClassResource.psm1'
+    Write-Host "DSC Class - File will be created: $modulePath"
+    New-Item -Path $modulePath -ItemType File -Value $module -Force | Out-Null
 
     ## Add script base Classs for testing and credential object
 
@@ -297,33 +328,46 @@ class PSClassResource {
 
 
     $modulePathRootPSM1 = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psm1'
-        if (-not (Test-Path -Path $modulePathRootPSM1)) {
-        New-Item -Path $modulePathRootPSM1 -ItemType File -Value $moduleScriptRootPSM1 -Force | Out-Null
-    }
-
+    New-Item -Path $modulePathRootPSM1 -ItemType File -Value $moduleScriptRootPSM1 -Force | Out-Null
 
     $modulePathRootPSD1 = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psd1'
-        if (-not (Test-Path -Path $modulePathRootPSD1)) {
-        New-Item -Path $modulePathRootPSD1 -ItemType File -Value $moduleFileScriptRootPSD1 -Force | Out-Null
-    }
-
+    New-Item -Path $modulePathRootPSD1 -ItemType File -Value $moduleFileScriptRootPSD1 -Force | Out-Null
 
     $modulePathScriptCredentialValidationPSM1 = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.psm1'
-    if (-not (Test-Path -Path $modulePathScriptCredentialValidationPSM1)) {
-        Write-Host "File will be created: $modulePathScriptCredentialValidationPSM1"
-        New-Item -Path $modulePathScriptCredentialValidationPSM1 -ItemType File -Value $moduleScriptCredentialValidationPSM1 -Force | Out-Null
-    }
+    Write-Host "File will be created: $modulePathScriptCredentialValidationPSM1"
+    New-Item -Path $modulePathScriptCredentialValidationPSM1 -ItemType File -Value $moduleScriptCredentialValidationPSM1 -Force | Out-Null
 
     $modulePathScriptCredentialValidationSchemaMof = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.schema.mof'
-    if (-not (Test-Path -Path $modulePathScriptCredentialValidationSchemaMof)) {
-        Write-Host "File will be created: $modulePathScriptCredentialValidationSchemaMof"
-        New-Item -Path $modulePathScriptCredentialValidationSchemaMof -ItemType File -Value $moduleScriptCredentialValidationSchemaMof -Force | Out-Null
-    }
+    Write-Host "File will be created: $modulePathScriptCredentialValidationSchemaMof"
+    New-Item -Path $modulePathScriptCredentialValidationSchemaMof -ItemType File -Value $moduleScriptCredentialValidationSchemaMof -Force | Out-Null
 
-    $env:PSModulePath = $windowsPowerShellPath + [System.IO.Path]::PathSeparator + $env:PSModulePath + [System.IO.Path]::PathSeparator
+    # Publish to %ProgramFiles%\WindowsPowerShell\Modules so Invoke-DscResource can find them.
+    # Do NOT also add the temp paths to $env:PSModulePath - having a module in two locations
+    # causes a duplicate CIM class conflict that makes the WinPS adapter fail (exit code 1).
+    # PSClassResource is staged in $classResourceStagingPath (isolated from TestScriptBaseDSC).
+    Publish-TestModuleToAllUsers -SourcePath (Join-Path $classResourceStagingPath 'PSClassResource')
+    Publish-TestModuleToAllUsers -SourcePath (Join-Path $windowsPowerShellPath 'TestScriptBaseDSC')
+
+    $publishedPath = Join-Path $env:ProgramFiles 'WindowsPowerShell\Modules\TestScriptBaseDSC\0.0.1\TestScriptBaseDSC.psd1'
+    Write-Host "Module published check: $(Test-Path $publishedPath) -> $publishedPath"
+
+    # Clear the WinPS adapter cache so it rebuilds cleanly from %ProgramFiles% only.
+    Remove-Item "$env:LOCALAPPDATA\dsc\WindowsPSAdapterCache.json" -Force -ErrorAction SilentlyContinue
+
+    # Do NOT add any temp staging path to PSModulePath.
+    # Both modules are published to %ProgramFiles%\WindowsPowerShell\Modules which is already
+    # in PSModulePath. Adding temp paths causes the WinPS adapter to detect stale/duplicate entries.
+
+
+
   }
 
   AfterAll {
+    foreach ($path in $script:AllUsersModuleCleanup) {
+        if (Test-Path $path) {
+            Remove-Item -Path $path -Recurse -Force
+        }
+    }
     $env:PSModulePath = $OldPSModulePath
     $env:DSC_RESOURCE_PATH = $null
   }
@@ -361,7 +405,7 @@ resources:
       $false
     }
 
-    $out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | ConvertFrom-Json
+    $out = dsc -l trace config test -i $yaml 2>"$testdrive/error1script.log" | ConvertFrom-Json
     $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
     $out.results[0].result.inDesiredState | Should -Be $inDesiredState
   }
@@ -379,8 +423,8 @@ resources:
            Password: 'MyPassword'
 '@
 
-    $out = dsc -l debug config set -i $yaml 2> "$testdrive/error.log" | ConvertFrom-Json
-    $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
+    $out = dsc -l debug config set -i $yaml 2> "$testdrive/error1class.log" | ConvertFrom-Json
+    $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error1class.log" -Raw | Out-String)
   }
 
   It 'Config does not work when credential properties are missing required fields' {
@@ -406,6 +450,7 @@ resources:
 
 It 'Config works with credential object Script base resources' {
 
+
 $inDesiredState = $true
 
 $yaml = @'
@@ -424,17 +469,16 @@ resources:
            Password: Password
 '@
 
-$outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
+# Capture raw output and error log
+$out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
 
 # Ensure process exit code first
-$LASTEXITCODE | Should -Be 0 
+$LASTEXITCODE | Should -Be 0
 
 # Parse JSON safely
-try {
-    $out = $outRaw | ConvertFrom-Json
-} catch {
-    Throw "Failed to parse dsc JSON output. Raw output:`n$outRaw`nError log:`n$(Get-Content -Raw "$testdrive/error.log")"
-}
+
+$out = $out | ConvertFrom-Json
+
 
 # Ensure results exist before indexing
 $out.results | Should -Not -BeNullOrEmpty -Because "dsc output should include results"
@@ -472,7 +516,6 @@ $out | Should -BeNullOrEmpty
 (Get-Content -Path "$testdrive/error.log" -Raw) | Should -BeLike "*ERROR*Credential object 'Credential' requires both 'username' and 'password' properties*" -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
 
 }
-
 
 
   It 'List works with class-based PS DSC resources' {
