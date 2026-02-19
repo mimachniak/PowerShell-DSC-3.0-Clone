@@ -408,12 +408,14 @@ It 'Config works with credential object Script base resources' {
 
 $inDesiredState = $true
 
-$yaml = @'
-$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+$psmp = "`$env:PSModulePath" + [System.IO.Path]::PathSeparator + $windowsPowerShellPath
+$yaml = @"
+`$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
 resources:
 - name: Working with classic DSC resources
   type: Microsoft.Windows/WindowsPowerShell
   properties:
+    psmodulepath: $psmp
     resources:
     - name: Script-resource Info
       type: TestScriptBaseDSC/CredentialValidation
@@ -422,7 +424,7 @@ resources:
         Credential:       
            UserName: MyUser
            Password: Password
-'@
+"@
 
 $outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
 
@@ -446,13 +448,14 @@ $out.results[0].result.inDesiredState | Should -Be $inDesiredState -Because "res
 # This works
 It 'Not Valide credentials with Script base resources - wrong properties' {
 
-
-$yaml = @'
-$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+$psmp = "`$env:PSModulePath" + [System.IO.Path]::PathSeparator + $windowsPowerShellPath
+$yaml = @"
+`$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
 resources:
 - name: Working with classic DSC resources
   type: Microsoft.Windows/WindowsPowerShell
   properties:
+    psmodulepath: $psmp
     resources:
     - name: Script-resource Info
       type: TestScriptBaseDSC/CredentialValidation
@@ -461,7 +464,7 @@ resources:
         Credential:       
            username: MyUser
            Notpassword: Password
-'@
+"@
 
 $out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
 $LASTEXITCODE | Should -Be 2
