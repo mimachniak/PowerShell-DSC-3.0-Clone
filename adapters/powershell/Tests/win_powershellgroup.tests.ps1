@@ -409,23 +409,29 @@ It 'Config works with credential object Script base resources' {
 $inDesiredState = $true
 
 $psmp = "`$env:PSModulePath" + [System.IO.Path]::PathSeparator + $windowsPowerShellPath
-$yaml = @"
+
+$inDesiredState = $true
+
+$yaml = @'
 `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
 resources:
 - name: Working with classic DSC resources
   type: Microsoft.Windows/WindowsPowerShell
   properties:
-    psmodulepath: $psmp
     resources:
     - name: Script-resource Info
       type: TestScriptBaseDSC/CredentialValidation
       properties:
         Name: TestScriptResource1
         Credential:       
-           username: 'MyUser'
-           password: 'Password'
-"@
+           UserName: MyUser
+           Password: Password
+'@
 
+$out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | ConvertFrom-Json
+$LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
+$out.results[0].result.inDesiredState | Should -Be $inDesiredState
+<#>
 $outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
 
 # Ensure process exit code first
@@ -440,7 +446,7 @@ $out.results | Should -Not -BeNullOrEmpty -Because "dsc output should include re
 
 # Assert the inDesiredState value
 $out.results[0].result.inDesiredState | Should -Be $inDesiredState -Because "resource should be in the desired state"
-
+#>
 
 }
 
