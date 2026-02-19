@@ -412,21 +412,22 @@ $psmp = "`$env:PSModulePath" + [System.IO.Path]::PathSeparator + $windowsPowerSh
 
 $inDesiredState = $true
 
-$yaml = @'
+$yaml = @"
 `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
 resources:
 - name: Working with classic DSC resources
   type: Microsoft.Windows/WindowsPowerShell
   properties:
+    psmodulepath: $psmp
     resources:
     - name: Script-resource Info
       type: TestScriptBaseDSC/CredentialValidation
       properties:
         Name: TestScriptResource1
-        Credential:       
-           UserName: MyUser
-           Password: Password
-'@
+        Credential:
+          UserName: MyUser
+          Password: Password
+"@
 
 $out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | ConvertFrom-Json
 $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
