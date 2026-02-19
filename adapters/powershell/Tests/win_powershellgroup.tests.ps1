@@ -406,13 +406,7 @@ resources:
 
 It 'Config works with credential object Script base resources' {
 
-$inDesiredState = $true
-
-$psmp = "`$env:PSModulePath" + [System.IO.Path]::PathSeparator + $windowsPowerShellPath
-
-$inDesiredState = $true
-
-$yaml = @'
+        $yaml = @'
 `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
 resources:
 - name: Working with classic DSC resources
@@ -423,14 +417,16 @@ resources:
       type: TestScriptBaseDSC/CredentialValidation
       properties:
         Name: TestScriptResource1
-        Credential:       
-           UserName: MyUser
-           Password: Password
+        Credential:
+          UserName: MyUser
+          Password: Password
 '@
 
-$out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | ConvertFrom-Json
-$LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
-$out.results[0].result.inDesiredState | Should -Be $inDesiredState
+        $out = dsc -l trace config test -i $yaml 2> $errorLog | ConvertFrom-Json
+
+        $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path $errorLog -Raw)
+        $out.results | Should -Not -BeNullOrEmpty -Because 'dsc should return at least one result'
+        $out.results[0].result.inDesiredState | Should -BeTrue -Because 'valid credentials should pass the script resource'
 <#>
 $outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
 
