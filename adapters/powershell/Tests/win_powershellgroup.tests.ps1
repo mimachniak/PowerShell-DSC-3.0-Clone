@@ -422,8 +422,8 @@ resources:
       properties:
         Name: TestScriptResource1
         Credential:       
-           UserName: MyUser
-           Password: Password
+           UserName: 'MyUser'
+           Password: 'Password'
 "@
 
 $outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
