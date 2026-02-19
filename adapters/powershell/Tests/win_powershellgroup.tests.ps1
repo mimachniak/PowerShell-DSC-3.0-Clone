@@ -422,9 +422,9 @@ resources:
           Password: Password
 '@
 
-        $out = dsc -l trace config test -i $yaml 2> $errorLog | ConvertFrom-Json
+        $out = dsc -l trace config test -i $yaml 2> "$testdrive/error.log" | ConvertFrom-Json
 
-        $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path $errorLog -Raw)
+        $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw)
         $out.results | Should -Not -BeNullOrEmpty -Because 'dsc should return at least one result'
         $out.results[0].result.inDesiredState | Should -BeTrue -Because 'valid credentials should pass the script resource'
 
