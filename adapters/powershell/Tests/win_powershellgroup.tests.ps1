@@ -427,22 +427,6 @@ resources:
         $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path $errorLog -Raw)
         $out.results | Should -Not -BeNullOrEmpty -Because 'dsc should return at least one result'
         $out.results[0].result.inDesiredState | Should -BeTrue -Because 'valid credentials should pass the script resource'
-<#>
-$outRaw = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | Out-String
-
-# Ensure process exit code first
-$LASTEXITCODE | Should -Be 0 
-
-# Parse JSON safely
-
-$out = $outRaw | ConvertFrom-Json
-
-# Ensure results exist before indexing
-$out.results | Should -Not -BeNullOrEmpty -Because "dsc output should include results"
-
-# Assert the inDesiredState value
-$out.results[0].result.inDesiredState | Should -Be $inDesiredState -Because "resource should be in the desired state"
-#>
 
 }
 
