@@ -321,7 +321,13 @@ class PSClassResource {
     }
 
     $env:PSModulePath = $windowsPowerShellPath + [System.IO.Path]::PathSeparator + $env:PSModulePath + [System.IO.Path]::PathSeparator
+    
+    Remove-Item "$env:LOCALAPPDATA\dsc\WindowsPSAdapterCache.json" -Force -ErrorAction SilentlyContinue
+
+    Invoke-DscCacheRefresh -Module "TestScriptBaseDSC"
+
   }
+
 
   AfterAll {
     $env:PSModulePath = $OldPSModulePath
@@ -405,8 +411,6 @@ resources:
   ## Scipt base resources test running
 
 It 'Config works with credential object Script base resources' {
-
-Invoke-DscCacheRefresh -Module "TestScriptBaseDSC"
 
 $inDesiredState = $true
 
