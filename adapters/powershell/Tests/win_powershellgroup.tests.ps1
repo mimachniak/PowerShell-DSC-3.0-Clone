@@ -322,12 +322,12 @@ class PSClassResource {
 
     $env:PSModulePath = $windowsPowerShellPath + [System.IO.Path]::PathSeparator + $env:PSModulePath + [System.IO.Path]::PathSeparator + $ProgramFileModule
     
-    Remove-Item "$env:LOCALAPPDATA\dsc\WindowsPSAdapterCache.json" -Force -ErrorAction SilentlyContinue
+    #Remove-Item "$env:LOCALAPPDATA\dsc\WindowsPSAdapterCache.json" -Force -ErrorAction SilentlyContinue
 
-    Invoke-DscCacheRefresh -Module "TestScriptBaseDSC"
+    #Invoke-DscCacheRefresh -Module "TestScriptBaseDSC"
 
-    $DscResource = Get-DscResource
-    write-host "Available DSC Resources: $($DscResource.Name -join ', ')"
+    #$DscResource = Get-DscResource
+    #write-host "Available DSC Resources: $($DscResource.Name -join ', ')"
 
   }
 
