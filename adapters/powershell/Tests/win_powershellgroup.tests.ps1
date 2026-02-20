@@ -406,6 +406,8 @@ resources:
 
 It 'Config works with credential object Script base resources' {
 
+Invoke-DscCacheRefresh -Module "TestScriptBaseDSC"
+
 $inDesiredState = $true
 
 $yaml = @'
