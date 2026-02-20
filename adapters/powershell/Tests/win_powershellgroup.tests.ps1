@@ -326,6 +326,9 @@ class PSClassResource {
 
     Invoke-DscCacheRefresh -Module "TestScriptBaseDSC"
 
+    $DscResource = Get-DscResource
+    write-host "Available DSC Resources: $($DscResource.Name -join ', ')"
+
   }
 
 
