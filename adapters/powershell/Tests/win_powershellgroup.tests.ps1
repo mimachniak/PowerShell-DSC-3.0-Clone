@@ -310,13 +310,13 @@ class PSClassResource {
 
     $modulePathScriptCredentialValidationPSM1 = Join-Path $ProgramFileModule 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.psm1'
     if (-not (Test-Path -Path $modulePathScriptCredentialValidationPSM1)) {
-        Write-Host "File will be created: $modulePathScriptCredentialValidationPSM1"
+        #Write-Host "File will be created: $modulePathScriptCredentialValidationPSM1"
         New-Item -Path $modulePathScriptCredentialValidationPSM1 -ItemType File -Value $moduleScriptCredentialValidationPSM1 -Force | Out-Null
     }
 
     $modulePathScriptCredentialValidationSchemaMof = Join-Path $ProgramFileModule 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.schema.mof'
     if (-not (Test-Path -Path $modulePathScriptCredentialValidationSchemaMof)) {
-        Write-Host "File will be created: $modulePathScriptCredentialValidationSchemaMof"
+        #Write-Host "File will be created: $modulePathScriptCredentialValidationSchemaMof"
         New-Item -Path $modulePathScriptCredentialValidationSchemaMof -ItemType File -Value $moduleScriptCredentialValidationSchemaMof -Force | Out-Null
     }
 
@@ -377,15 +377,15 @@ resources:
 
   It 'Config works with credential object' {
   $yaml = @'
-   $schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
-   resources:
-     - name: Cred test
-       type: PSClassResource/PSClassResource
-       properties:
-         Name: Test
-         Credential:
-           UserName: 'MyUser'
-           Password: 'MyPassword'
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+resources:
+  - name: Cred test
+    type: PSClassResource/PSClassResource
+    properties:
+      Name: Test
+      Credential:
+        UserName: 'MyUser'
+        Password: 'MyPassword'
 '@
 
     $out = dsc -l debug config set -i $yaml 2> "$testdrive/error.log" | ConvertFrom-Json
@@ -411,7 +411,7 @@ resources:
     (Get-Content -Path "$testdrive/error.log" -Raw) | Should -BeLike "*ERROR*Credential object 'Credential' requires both 'username' and 'password' properties*" -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
   }
 
-  ## Scipt base resources test running
+  ## Script base resources test running
 
 It 'Config works with credential object Script base resources' {
 
@@ -440,7 +440,7 @@ $out.results[0].result.inDesiredState | Should -Be $inDesiredState
 
 
 # This works
-It 'Not Valide credentials with Script base resources - wrong properties' {
+It 'Not Valid credentials with Script base resources - wrong properties' {
 
 
 $yaml = @'

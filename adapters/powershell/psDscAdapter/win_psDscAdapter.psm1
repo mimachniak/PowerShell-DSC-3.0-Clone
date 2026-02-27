@@ -374,9 +374,10 @@ function Invoke-DscOperation {
                     if ($_.Value -is [System.Management.Automation.PSCustomObject]) {
                         $validateProperty = $cachedDscResourceInfo.Properties | Where-Object -Property Name -EQ $_.Name
                         Write-DscTrace -Operation Debug -Message "Property type: $($validateProperty.PropertyType)"
-                        if ($validateProperty -and $validateProperty.PropertyType -in @('PSCredential', '[PSCredential]', 'System.Management.Automation.PSCredential')) {
+                        if ($validateProperty -and $validateProperty.PropertyType -eq '[PSCredential]') {
 
                             $hasSecureCred =
+                                $_.Value.PSObject.Properties['secureObject'] -and
                                 $_.Value.secureObject.Username -and
                                 $_.Value.secureObject.Password
 
@@ -385,7 +386,7 @@ function Invoke-DscOperation {
                                 $_.Value.Password
 
                             if (-not $hasSecureCred -and -not $hasTextCred) {
-                                "Credential object '$($_.Name)' requires both 'username' and 'password' properties" |
+                                "Credential object '$($_.Name)' requires both 'Username' and 'Password' properties" |
                                     Write-DscTrace -Operation Error
                                 exit 1
                             }
@@ -458,9 +459,9 @@ function Invoke-DscOperation {
                             if ($_.Value -is [System.Management.Automation.PSCustomObject]) {
                                 $validateProperty = $cachedDscResourceInfo.Properties | Where-Object -Property Name -EQ $_.Name
                                 Write-DscTrace -Operation Debug -Message "Property type: $($validateProperty.PropertyType)"
-                                if ($validateProperty.PropertyType -in @('PSCredential', '[PSCredential]', 'System.Management.Automation.PSCredential')) {
-                                
+                                if ($validateProperty.PropertyType -eq 'PSCredential') {
                                 $hasSecureCred =
+                                    $_.Value.PSObject.Properties['secureObject'] -and
                                     $_.Value.secureObject.Username -and
                                     $_.Value.secureObject.Password
 
@@ -469,13 +470,13 @@ function Invoke-DscOperation {
                                     $_.Value.Password
 
                                 if (-not $hasSecureCred -and -not $hasTextCred) {
-                                    "$($_.Value)" | Write-DscTrace -Operation Warn
-                                    "Credential object '$($_.Name)' requires both 'username' and 'password' properties" |
+                                    "Invalid credential object for property '$($_.Name)'" | Write-DscTrace -Operation Warn
+                                    "Credential object '$($_.Name)' requires both 'Username' and 'Password' properties" |
                                         Write-DscTrace -Operation Error
                                     exit 1
                                 }
 
-                                 if ($hasSecureCred) {
+                                if ($hasSecureCred) {
                                 "Credential object '$($_.Name)' - SecureObject" | Write-DscTrace -Operation Info
 
                                     $username = $_.Value.secureObject.Username
@@ -568,9 +569,9 @@ function Invoke-DscOperation {
                     if ($_.Value -is [System.Management.Automation.PSCustomObject]) {
                         $validateProperty = $cachedDscResourceInfo.Properties | Where-Object -Property Name -EQ $_.Name
                         Write-DscTrace -Operation Debug -Message "Property type: $($validateProperty.PropertyType)"
-                        if ($validateProperty.PropertyType -in @('PSCredential', '[PSCredential]', 'System.Management.Automation.PSCredential')) {
+                        if ($validateProperty.PropertyType -eq '[PSCredential]') {
                             if (-not $_.Value.Username -or -not $_.Value.Password) {
-                                "Credential object '$($_.Name)' requires both 'username' and 'password' properties" | Write-DscTrace -Operation Error
+                                "Credential object '$($_.Name)' requires both 'Username' and 'Password' properties" | Write-DscTrace -Operation Error
                                 exit 1
                             }
                             $property.$($_.Name) = [System.Management.Automation.PSCredential]::new($_.Value.Username, (ConvertTo-SecureString -AsPlainText $_.Value.Password -Force))

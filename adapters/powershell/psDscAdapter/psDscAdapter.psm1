@@ -475,6 +475,7 @@ function Invoke-DscOperation {
                             if ($_.Value -is [System.Management.Automation.PSCustomObject]) {
                                 if ($validateProperty -and $validateProperty.PropertyType -in @('PSCredential', 'System.Management.Automation.PSCredential')) {
                                 $hasSecureCred =
+                                    $_.Value.PSObject.Properties['secureObject'] -and
                                     $_.Value.secureObject.Username -and
                                     $_.Value.secureObject.Password
 
@@ -483,7 +484,7 @@ function Invoke-DscOperation {
                                     $_.Value.Password
 
                                     if (-not $hasSecureCred -and -not $hasTextCred) {
-                                        "Credential object '$($_.Name)' requires both 'username' and 'password' properties" |
+                                        "Credential object '$($_.Name)' requires both 'Username' and 'Password' properties" |
                                             Write-DscTrace -Operation Error
                                         exit 1
                                     }
