@@ -78,12 +78,6 @@ begin {
             $publishedVersions = Get-DscProjectTagVersion
             | Sort-Object -Descending
 
-            if (-not $publishedVersions) {
-                Write-Verbose "No version tags found in git. Keeping existing .versions.json."
-                $dataPath = Join-Path -Path $PSScriptRoot -ChildPath '.versions.json'
-                return (Get-Content -Raw -Path $dataPath)
-            }
-
             [System.Collections.Generic.HashSet[semver]]$majorVersions = @()
             [System.Collections.Generic.HashSet[semver]]$minorVersions = @()
             [System.Collections.Generic.HashSet[semver]]$patchVersions = @()

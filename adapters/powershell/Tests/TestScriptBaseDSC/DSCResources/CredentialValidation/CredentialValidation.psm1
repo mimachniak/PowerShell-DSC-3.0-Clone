@@ -45,6 +45,7 @@ function Test-TargetResource {
         }
 
     if ($Credential.UserName -ne 'MyUser') {
+            throw 'Invalid user name'
             $inDesiredState = $false
     } else {
             $inDesiredState = $true
@@ -69,17 +70,18 @@ function Set-TargetResource {
     )
 
        if ($null -eq $Credential) {
+          throw 'Credential property is required'
           $inDesiredState = $false
           return $false
         }
 
         if ($Credential.UserName -ne 'MyUser') {
+                throw 'Invalid user name'
                 $inDesiredState = $false
         } else {
                 $inDesiredState = $true
         }
 
-
-        return $inDesiredState
     Write-Verbose "[SET]Credential cannot be remediated by DSC."
+        return $inDesiredState
 }

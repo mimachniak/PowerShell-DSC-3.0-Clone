@@ -20,6 +20,7 @@ pub enum Schemas {
     Trace,
     Version,
     WhatIf,
+    WhatIfDelete
 }
 
 #[derive(Debug, Parser)]
@@ -38,6 +39,7 @@ pub enum AdapterOperation {
     List,
     Export,
     Validate,
+    Schema,
 }
 
 #[derive(Debug, PartialEq, Eq, Subcommand)]
@@ -110,6 +112,9 @@ pub enum SubCommand {
         export: bool,
     },
 
+    #[clap(name = "no-op", about = "Perform no operation, just return success")]
+    NoOp,
+
     #[clap(name = "operation", about = "Perform an operation")]
     Operation {
         #[clap(name = "operation", short, long, help = "The name of the operation to perform")]
@@ -140,6 +145,12 @@ pub enum SubCommand {
 
     #[clap(name = "whatif", about = "Check if it is a whatif operation")]
     WhatIf {
+        #[clap(name = "whatif", short, long, help = "Run as a whatif executionType instead of actual executionType")]
+        what_if: bool,
+    },
+
+    #[clap(name = "whatif-delete", about = "Check if it is a whatif delete operation")]
+    WhatIfDelete {
         #[clap(name = "whatif", short, long, help = "Run as a whatif executionType instead of actual executionType")]
         what_if: bool,
     }

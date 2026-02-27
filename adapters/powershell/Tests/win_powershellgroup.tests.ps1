@@ -231,14 +231,16 @@ class PSClassResource {
         )
         Write-Verbose "[TEST]Checking credentials"
         Write-Verbose "[TEST]Checking credentials UserName:  $($Credential.UserName)"
-        Write-Verbose "[TEST]Checking credentials Password:  <redacted>"
+        Write-Verbose "[TEST]Checking credentials Password:  $($Credential.Password)"
 
       if ($null -eq $Credential) {
+              throw 'Credential property is required'
               $inDesiredState = $false
               return $false
             }
 
         if ($Credential.UserName -ne 'MyUser') {
+                throw 'Invalid user name'
                 $inDesiredState = $false
         } else {
                 $inDesiredState = $true
@@ -263,11 +265,13 @@ class PSClassResource {
         )
 
           if ($null -eq $Credential) {
+              throw 'Credential property is required'
               $inDesiredState = $false
               return $false
             }
 
             if ($Credential.UserName -ne 'MyUser') {
+                    throw 'Invalid user name'
                     $inDesiredState = $false
             } else {
                     $inDesiredState = $true
@@ -543,7 +547,9 @@ $out | Should -BeNullOrEmpty
     }
     if ($metadata -eq 'Microsoft.DSC') {
       "$TestDrive/tracing.txt" | Should -FileContentMatch "Invoking $Operation for '$adapter'" -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
-
+      if ($adapter -eq 'Microsoft.Adapter/WindowsPowerShell') {
+        "$TestDrive/tracing.txt" | Should -FileContentMatch "Resource 'Microsoft.Windows/WindowsPowerShell' is deprecated" -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
+      }
     }
   }
 }
