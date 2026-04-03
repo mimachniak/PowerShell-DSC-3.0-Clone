@@ -1,4 +1,13 @@
 {
-    "name": "certificate",
-    "description": "DSC resource for managing Windows certificates"
+    "Name": "certificate",
+    "Kind": "Resource",
+    "SupportedPlatformOS": "Windows",
+    "CopyFiles": {
+        "Windows": [
+            "certificate.ps1",
+            "certificate.dsc.resource.json",
+            "selfsignedcertificate.ps1",
+            "selfsignedcertificate.dsc.resource.json"
+        ]
+    }
 }
