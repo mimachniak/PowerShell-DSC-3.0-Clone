@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use miette::Diagnostic;
 use rust_i18n::t;
 use std::str::Utf8Error;
 
@@ -8,7 +9,7 @@ use indicatif::style::TemplateError;
 use thiserror::Error;
 use tree_sitter::LanguageError;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Diagnostic)]
 pub enum DscError {
     #[error("{t}: {0}", t = t!("dscerror.adapterNotFound"))]
     AdapterNotFound(String),
@@ -52,6 +53,9 @@ pub enum DscError {
     #[error("{t} '{0}', {t2} {1}, {t3} {2}", t = t!("dscerror.invalidFunctionParameterCount"), t2 = t!("dscerror.expected"), t3 = t!("dscerror.got"))]
     InvalidFunctionParameterCount(String, usize, usize),
 
+    #[error(transparent)]
+    DateVersion(#[from] crate::types::DateVersionError),
+
     #[error("{t} '{0}': {1}", t = t!("dscerror.invalidExitCode"))]
     InvalidExitCode(String, core::num::ParseIntError),
 
@@ -67,8 +71,8 @@ pub enum DscError {
     #[error("{t} '{0}' - {t2}: '{1}'", t = t!("dscerror.invalidTagPrefix"), t2 = t!("dscerror.invalidTagSuffix"))]
     InvalidTag(String, String),
 
-    #[error("{t} '{0}' - {t2}: '{1}'", t = t!("dscerror.invalidTypeNamePrefix"), t2 = t!("dscerror.invalidTypeNameSuffix"))]
-    InvalidTypeName(String, String),
+    #[error(transparent)]
+    FullyQualifiedTypeName(#[from] crate::types::FullyQualifiedTypeNameError),
 
     #[error("IO: {0}")]
     Io(#[from] std::io::Error),
@@ -112,6 +116,18 @@ pub enum DscError {
     #[error("{t}: {0}", t = t!("dscerror.progress"))]
     Progress(#[from] TemplateError),
 
+    #[cfg(windows)]
+    #[error("{t}: {0}", t = t!("dscerror.registryHive"))]
+    RegistryHive(#[from] registry::Error),
+
+    #[cfg(windows)]
+    #[error("{t}: {0}", t = t!("dscerror.registryIterator"))]
+    RegistryIterator(#[from] registry::iter::values::Error),
+
+    #[cfg(windows)]
+    #[error("{t}: {0}", t = t!("dscerror.registryKey"))]
+    RegistryKey(#[from] registry::key::Error),
+
     #[error("{t}: {0}", t = t!("dscerror.resourceMissingDirectory"))]
     ResourceMissingDirectory(String),
 
@@ -124,11 +140,11 @@ pub enum DscError {
     #[error("{t}: {0}", t = t!("dscerror.resourceManifestNotFound"))]
     ResourceManifestNotFound(String),
 
-    #[error("{t}: '{0}'", t = t!("dscerror.resourceVersionToSemverConversion"))]
-    ResourceVersionToSemverConversion(String),
+    #[error(transparent)]
+    ResourceVersion(#[from] crate::types::ResourceVersionError),
 
-    #[error("{t}: '{0}'", t = t!("dscerror.resourceVersionReqToSemverConversion"))]
-    ResourceVersionReqToSemverConversion(String),
+    #[error(transparent)]
+    ResourceVersionReq(#[from] crate::types::ResourceVersionReqError),
 
     #[error("{t}: {0}", t = t!("dscerror.schema"))]
     Schema(String),
@@ -139,16 +155,17 @@ pub enum DscError {
     #[error("{t}: {0}", t = t!("dscerror.securityContext"))]
     SecurityContext(String),
 
-    #[error("semver: {0}")]
-    SemVer(#[from] semver::Error),
+    #[error(transparent)]
+    SemVer(#[from] crate::types::SemanticVersionError),
 
-    #[error(
-        "{t}: '{0}' {t2} '{1}' - {t3}",
-        t = t!("dscerror.semverReqWithBuildMetadataPrefix"),
-        t2 = t!("dscerror.semverReqWithBuildMetadataInfix"),
-        t3 = t!("dscerror.semverReqWithBuildMetadataSuffix")
-    )]
-    SemVerReqWithBuildMetadata(String, String),
+    #[error(transparent)]
+    SemverReq(#[from] crate::types::SemanticVersionReqError),
+
+    #[error(transparent)]
+    TypeNameFilter(#[from] crate::types::TypeNameFilterError),
+
+    #[error("{t}: {0}", t = t!("dscerror.utf16Conversion"))]
+    Utf16Conversion(#[from] std::string::FromUtf16Error),
 
     #[error("{t}: {0}", t = t!("dscerror.utf8Conversion"))]
     Utf8Conversion(#[from] Utf8Error),
@@ -167,6 +184,9 @@ pub enum DscError {
 
     #[error("{t}: {0}", t = t!("dscerror.validation"))]
     Validation(String),
+
+    #[error(transparent)]
+    WildcardTypeName(#[from] crate::types::WildcardTypeNameError),
 
     #[error("YAML: {0}")]
     Yaml(#[from] serde_yaml::Error),

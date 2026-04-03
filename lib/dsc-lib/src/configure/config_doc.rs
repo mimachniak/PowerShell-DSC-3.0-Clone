@@ -8,25 +8,39 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::{collections::HashMap, fmt::Display};
 
-use crate::{schemas::{
-    dsc_repo::DscRepoSchema,
-    transforms::{idiomaticize_externally_tagged_enum, idiomaticize_string_enum}
-}, types::FullyQualifiedTypeName};
+use crate::{
+    schemas::{
+        dsc_repo::DscRepoSchema,
+        transforms::{idiomaticize_externally_tagged_enum, idiomaticize_string_enum}
+    },
+    types::{FullyQualifiedTypeName, ResourceVersionReq, SemanticVersionReq}
+};
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = idiomaticize_string_enum)]
-#[dsc_repo_schema(base_name = "securityContext", folder_path = "metadata/Microsoft.DSC")]
+#[dsc_repo_schema(base_name = "securityContext", folder_path = "executionInformation")]
 pub enum SecurityContextKind {
     Current,
     Elevated,
     Restricted,
 }
 
+impl Display for SecurityContextKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let context_str = match self {
+            SecurityContextKind::Current => "current",
+            SecurityContextKind::Elevated => "elevated",
+            SecurityContextKind::Restricted => "restricted",
+        };
+        write!(f, "{context_str}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = idiomaticize_string_enum)]
-#[dsc_repo_schema(base_name = "operation", folder_path = "metadata/Microsoft.DSC")]
+#[dsc_repo_schema(base_name = "operation", folder_path = "executionInformation")]
 pub enum Operation {
     Get,
     Set,
@@ -34,10 +48,22 @@ pub enum Operation {
     Export,
 }
 
+impl Display for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let operation_str = match self {
+            Operation::Get => "get",
+            Operation::Set => "set",
+            Operation::Test => "test",
+            Operation::Export => "export",
+        };
+        write!(f, "{operation_str}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = idiomaticize_string_enum)]
-#[dsc_repo_schema(base_name = "executionType", folder_path = "metadata/Microsoft.DSC")]
+#[dsc_repo_schema(base_name = "executionType", folder_path = "executionInformation")]
 pub enum ExecutionKind {
     Actual,
     WhatIf,
@@ -53,7 +79,7 @@ pub struct Process {
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = idiomaticize_externally_tagged_enum)]
-#[dsc_repo_schema(base_name = "restartRequired", folder_path = "metadata/Microsoft.DSC")]
+#[dsc_repo_schema(base_name = "restartRequired", folder_path = "executionInformation")]
 pub enum RestartRequired {
     System(String),
     Service(String),
@@ -62,10 +88,20 @@ pub enum RestartRequired {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
 #[serde(rename_all = "camelCase")]
-#[dsc_repo_schema(base_name = "resourceDiscovery", folder_path = "metadata/Microsoft.DSC")]
+#[dsc_repo_schema(base_name = "resourceDiscovery", folder_path = "directive")]
 pub enum ResourceDiscoveryMode {
     PreDeployment,
     DuringDeployment,
+}
+
+impl Display for ResourceDiscoveryMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mode_str = match self {
+            ResourceDiscoveryMode::PreDeployment => "preDeployment",
+            ResourceDiscoveryMode::DuringDeployment => "duringDeployment",
+        };
+        write!(f, "{mode_str}")
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
@@ -83,12 +119,6 @@ pub struct MicrosoftDscMetadata {
     /// The operation being performed
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operation: Option<Operation>,
-    /// Specify specific adapter type used for implicit operations
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub require_adapter: Option<String>,
-    /// Indicates if resources are discovered pre-deployment or during deployment
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_discovery: Option<ResourceDiscoveryMode>,
     /// Indicates what needs to be restarted after the configuration operation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restart_required: Option<Vec<RestartRequired>>,
@@ -124,6 +154,94 @@ impl MicrosoftDscMetadata {
             ..Default::default()
         }
     }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
+#[serde(rename_all = "camelCase")]
+#[dsc_repo_schema(base_name = "executionInformation", folder_path = "config")]
+pub struct ExecutionInformation {
+    /// The duration of the configuration operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<String>,
+    /// The end time of the configuration operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_datetime: Option<String>,
+    /// The type of execution
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_type: Option<ExecutionKind>,
+    /// The operation being performed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operation: Option<Operation>,
+    /// Indicates what needs to be restarted after the configuration operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub restart_required: Option<Vec<RestartRequired>>,
+    /// Copy loop context for resources expanded from copy loops
+    #[serde(rename = "copyLoops", skip_serializing_if = "Option::is_none")]
+    pub copy_loops: Option<Map<String, Value>>,
+    /// The security context used for the configuration operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security_context: Option<SecurityContextKind>,
+    /// The start time of the configuration operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_datetime: Option<String>,
+    /// Version of DSC
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Information about what-if operations performed during this execution, if any
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub what_if: Option<Value>,
+}
+
+impl ExecutionInformation {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            duration: None,
+            end_datetime: None,
+            execution_type: None,
+            operation: None,
+            restart_required: None,
+            copy_loops: None,
+            security_context: None,
+            start_datetime: None,
+            version: None,
+            what_if: None,
+        }
+    }
+
+    pub fn new_with_duration(start: &DateTime<Local>, end: &DateTime<Local>) -> Self {
+        Self {
+            duration: Some(end.signed_duration_since(*start).to_string()),
+            ..Self::new()
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
+#[serde(rename_all = "camelCase")]
+#[dsc_repo_schema(base_name = "directive", folder_path = "config")]
+pub struct ConfigDirective {
+    /// Indicates if resources are discovered pre-deployment or during deployment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_discovery: Option<ResourceDiscoveryMode>,
+    /// The required security context of the configuration operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security_context: Option<SecurityContextKind>,
+    /// Required version of DSC
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<SemanticVersionReq>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
+#[serde(rename_all = "camelCase")]
+#[dsc_repo_schema(base_name = "directive", folder_path = "resource")]
+pub struct ResourceDirective {
+    /// Specify specific adapter type used for implicit operations
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_adapter: Option<FullyQualifiedTypeName>,
+    /// The required security context of the configuration operation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security_context: Option<SecurityContextKind>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
@@ -181,7 +299,7 @@ pub struct Output {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 #[dsc_repo_schema(
     base_name = "document",
     folder_path = "config",
@@ -196,8 +314,11 @@ pub struct Configuration {
     #[serde(rename = "$schema")]
     #[schemars(schema_with = "Configuration::recognized_schema_uris_subschema")]
     pub schema: String,
-    #[serde(rename = "contentVersion")]
     pub content_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directives: Option<ConfigDirective>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_information: Option<ExecutionInformation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub functions: Option<Vec<UserFunction>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -345,7 +466,7 @@ pub struct Sku {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema, DscRepoSchema)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 #[dsc_repo_schema(base_name = "document.resource", folder_path = "config")]
 pub struct Resource {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -353,16 +474,20 @@ pub struct Resource {
     /// The fully qualified name of the resource type
     #[serde(rename = "type")]
     pub resource_type: FullyQualifiedTypeName,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "requireVersion", alias = "apiVersion")]
-    pub require_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "apiVersion")]
+    pub require_version: Option<ResourceVersionReq>,
     /// A friendly name for the resource instance
     #[serde(default)]
     pub name: String, // friendly unique instance name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comments: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub directives: Option<ResourceDirective>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_information: Option<ExecutionInformation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
-    #[serde(rename = "dependsOn", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(regex(pattern = r"^\[resourceId\(\s*'[a-zA-Z0-9\.]+/[a-zA-Z0-9]+'\s*,\s*'[a-zA-Z0-9 ]+'\s*\)]$"))]
     pub depends_on: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -399,6 +524,8 @@ impl Configuration {
         Self {
             schema: Self::default_schema_id_uri(),
             content_version: Some("1.0.0".to_string()),
+            directives: None,
+            execution_information: None,
             metadata: None,
             parameters: None,
             resources: Vec::new(),
@@ -416,6 +543,8 @@ impl Resource {
             resource_type: FullyQualifiedTypeName::default(),
             name: String::new(),
             depends_on: None,
+            directives: None,
+            execution_information: None,
             kind: None,
             properties: None,
             metadata: None,
@@ -517,12 +646,12 @@ mod test {
                 {
                     "type": "Microsoft.DSC.Debug/Echo",
                     "name": "echoResource",
-                    "requireVersion": "1.0.0"
+                    "requireVersion": "=1.0.0"
                 },
                 {
                     "type": "Microsoft/Process",
                     "name": "processResource",
-                    "requireVersion": "0.1.0"
+                    "requireVersion": "=0.1.0"
                 }
             ]
         }"#;
@@ -532,11 +661,11 @@ mod test {
         assert_eq!(config.resources.len(), 2);
         assert_eq!(config.resources[0].name, "echoResource");
         assert_eq!(config.resources[0].resource_type, "Microsoft.DSC.Debug/Echo");
-        assert_eq!(config.resources[0].require_version.as_deref(), Some("1.0.0"));
+        assert_eq!(config.resources[0].require_version.as_ref().map(|r| r.to_string()), Some("=1.0.0".to_string()));
 
         assert_eq!(config.resources[1].name, "processResource");
         assert_eq!(config.resources[1].resource_type, "Microsoft/Process");
-        assert_eq!(config.resources[1].require_version.as_deref(), Some("0.1.0"));
+        assert_eq!(config.resources[1].require_version.as_ref().map(|r| r.to_string()), Some("=0.1.0".to_string()));
     }
 
 }

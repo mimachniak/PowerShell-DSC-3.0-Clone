@@ -9,7 +9,7 @@ Describe 'Invoke a resource set directly' {
     }
 
      It 'version works' {
-        $out = dsc resource set -r Test/Version --version 1.1.2 --input '{"version":"1.1.2"}' | ConvertFrom-Json
+        $out = dsc resource set -r Test/Version --version '=1.1.2' --input '{"version":"1.1.2"}' | ConvertFrom-Json
         $LASTEXITCODE | Should -Be 0
         $out.afterState.version | Should -BeExactly '1.1.2'
         $out.changedProperties | Should -BeNullOrEmpty
@@ -39,5 +39,22 @@ Describe 'Invoke a resource set directly' {
         $LASTEXITCODE | Should -Be 0
         $result.afterState.executionType | Should -BeExactly 'Actual'
         $result.changedProperties | Should -Be $null
+    }
+
+    It 'stateAndDiff resource set returns changed properties when not in desired state' {
+        $result = '{"valueOne":3,"valueTwo":4}' | dsc resource set -r Test/StateAndDiff -f - | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $result.afterState.valueOne | Should -Be 1
+        $result.afterState.valueTwo | Should -Be 2
+        $result.changedProperties | Should -Contain 'valueOne'
+        $result.changedProperties | Should -Contain 'valueTwo'
+    }
+
+    It 'stateAndDiff resource set returns no changed properties when in desired state' {
+        $result = '{"valueOne":1,"valueTwo":2}' | dsc resource set -r Test/StateAndDiff -f - | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $result.afterState.valueOne | Should -Be 1
+        $result.afterState.valueTwo | Should -Be 2
+        $result.changedProperties | Should -BeNullOrEmpty
     }
 }

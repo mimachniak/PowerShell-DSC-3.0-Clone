@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 #[cfg(test)]
+mod date_version;
+#[cfg(test)]
 mod exit_code;
 #[cfg(test)]
 mod exit_code_map;
@@ -19,3 +21,7 @@ mod semantic_version_req;
 mod tag;
 #[cfg(test)]
 mod tag_list;
+#[cfg(test)]
+mod type_name_filter;
+#[cfg(test)]
+mod wildcard_type_name;

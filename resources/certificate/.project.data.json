@@ -1,0 +1,4 @@
+{
+    "name": "certificate",
+    "description": "DSC resource for managing Windows certificates"
+}

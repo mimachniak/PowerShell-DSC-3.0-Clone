@@ -153,12 +153,15 @@ Describe 'whatif tests' {
         $what_if_result.hadErrors | Should -BeFalse
         $what_if_result.metadata.'Microsoft.DSC'.executionType | Should -BeExactly 'whatIf'
         $what_if_result.results[0].metadata.whatIf[0] | Should -BeExactly 'Delete what-if message 1'
+        $what_if_result.results[0].executionInformation.whatIf[0] | Should -BeExactly 'Delete what-if message 1'
         $what_if_result.results[0].metadata.whatIf[1] | Should -BeExactly 'Delete what-if message 2'
+        $what_if_result.results[0].executionInformation.whatIf[1] | Should -BeExactly 'Delete what-if message 2'
         $set_result = $config_yaml | dsc config set -f - | ConvertFrom-Json
         $LASTEXITCODE | Should -Be 0
         $set_result.hadErrors | Should -BeFalse
         $set_result.metadata.'Microsoft.DSC'.executionType | Should -BeExactly 'actual'
         $set_result.results[0].metadata.whatIf | Should -BeNullOrEmpty
+        $set_result.results[0].executionInformation.whatIf | Should -BeNullOrEmpty
     }
 
     It 'Synthetic what-if for delete resource works' {
@@ -180,5 +183,60 @@ Describe 'whatif tests' {
         $out.results[0].result.afterState.deleteCalled | Should -BeNullOrEmpty
         $out.results[0].result.afterState._exist | Should -BeFalse
         $out.metadata.'Microsoft.DSC'.executionType | Should -BeExactly 'whatIf'
+    }
+
+    It 'dsc resource delete supports what-if flag' {
+        $result = dsc resource delete -r Test/WhatIfDelete -i '{"_exist": false}' --what-if | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $result._metadata.whatIf | Should -Not -BeNullOrEmpty
+        $result._metadata.whatIf | Should -Contain 'Delete what-if message 1'
+        $result._metadata.whatIf | Should -Contain 'Delete what-if message 2'
+    }
+
+    It 'dsc resource delete synthetic what-if logs info message and produces no output' {
+        $result = dsc -l info resource delete -r Test/Delete -i '{"_exist": false}' --what-if 2>&1
+        $LASTEXITCODE | Should -Be 0
+        "$result" | Should -Match 'generate synthetic what-if'
+        "$result" | Should -Not -Match '^\s*\{'
+    }
+    
+    It 'Test/WhatIfReturnDiff resource returns state and diff in what-if mode' {
+        $config_yaml = @"
+        `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+        resources:
+        - name: WhatIfReturn StateAndDiff
+          type: Test/WhatIfReturnDiff
+          properties:
+            executionType: Actual
+"@
+        $what_if_result = $config_yaml | dsc config set -w -f - | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $what_if_result.hadErrors | Should -BeFalse
+        $what_if_result.metadata.'Microsoft.DSC'.executionType | Should -BeExactly 'whatIf'
+        $what_if_result.results[0].result.beforeState.executionType | Should -BeExactly 'Actual'
+        $what_if_result.results[0].result.afterState.executionType | Should -BeExactly 'WhatIf'
+        $what_if_result.results[0].result.afterState.fromResource | Should -BeExactly 'ResourceProvidedDiff'
+        $what_if_result.results[0].result.changedProperties | Should -BeExactly 'fromResource'
+        $what_if_result.results.Count | Should -Be 1
+    }
+
+    It 'Test/WhatIfReturnDiff resource returns state only in actual mode' {
+        $config_yaml = @"
+        `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+        resources:
+        - name: WhatIfReturn StateAndDiff
+          type: Test/WhatIfReturnDiff
+          properties:
+            executionType: Actual
+"@
+        $actual_result = $config_yaml | dsc config set -f - | ConvertFrom-Json
+        $LASTEXITCODE | Should -Be 0
+        $actual_result.hadErrors | Should -BeFalse
+        $actual_result.metadata.'Microsoft.DSC'.executionType | Should -BeExactly 'actual'
+        $actual_result.results[0].result.beforeState.executionType | Should -BeExactly 'Actual'
+        $actual_result.results[0].result.afterState.executionType | Should -BeExactly 'Actual'
+        $actual_result.results[0].result.afterState.fromResource | Should -BeNullOrEmpty
+        $actual_result.results[0].result.changedProperties | Should -Be $null
+        $actual_result.results.Count | Should -Be 1
     }
 }

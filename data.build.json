@@ -8,6 +8,7 @@
       "dsc",
       "dsc_default.settings.json",
       "dsc.settings.json",
+      "dsc-bicep-ext",
       "dscecho",
       "echo.dsc.resource.json",
       "assertion.dsc.resource.json",
@@ -18,6 +19,8 @@
       "NOTICE.txt",
       "osinfo",
       "osinfo.dsc.resource.json",
+      "powershell.dsc.extension.json",
+      "powershell.discover.ps1",
       "powershell.dsc.resource.json",
       "psDscAdapter/",
       "psscript.ps1",
@@ -25,12 +28,14 @@
       "RunCommandOnSet.dsc.resource.json",
       "runcommandonset",
       "sshdconfig",
-      "sshd_config.dsc.resource.json"
+      "sshd_config.dsc.resource.json",
+      "y2j"
     ],
     "macOS": [
       "dsc",
       "dsc_default.settings.json",
       "dsc.settings.json",
+      "dsc-bicep-ext",
       "dscecho",
       "echo.dsc.resource.json",
       "assertion.dsc.resource.json",
@@ -41,6 +46,8 @@
       "NOTICE.txt",
       "osinfo",
       "osinfo.dsc.resource.json",
+      "powershell.dsc.extension.json",
+      "powershell.discover.ps1",
       "powershell.dsc.resource.json",
       "psDscAdapter/",
       "psscript.ps1",
@@ -48,7 +55,8 @@
       "RunCommandOnSet.dsc.resource.json",
       "runcommandonset",
       "sshdconfig",
-      "sshd_config.dsc.resource.json"
+      "sshd_config.dsc.resource.json",
+      "y2j"
     ],
     "Windows": [
       "appx.dsc.extension.json",
@@ -56,6 +64,7 @@
       "dsc.exe",
       "dsc_default.settings.json",
       "dsc.settings.json",
+      "dsc-bicep-ext.exe",
       "dscecho.exe",
       "echo.dsc.resource.json",
       "assertion.dsc.resource.json",
@@ -64,6 +73,8 @@
       "NOTICE.txt",
       "osinfo.exe",
       "osinfo.dsc.resource.json",
+      "powershell.dsc.extension.json",
+      "powershell.discover.ps1",
       "powershell.dsc.resource.json",
       "psDscAdapter/",
       "psscript.ps1",
@@ -81,12 +92,15 @@
       "windowspowershell.dsc.resource.json",
       "windowsupdate.dsc.resource.json",
       "wu_dsc.exe",
+      "windows_service.exe",
+      "windows_service.dsc.resource.json",
       "wmi.dsc.resource.json",
       "wmi.resource.ps1",
       "wmiAdapter.psd1",
       "wmiAdapter.psm1",
       "windows_baseline.dsc.yaml",
-      "windows_inventory.dsc.yaml"
+      "windows_inventory.dsc.yaml",
+      "y2j.exe"
     ]
   },
   "Projects": [
@@ -163,6 +177,15 @@
       }
     },
     {
+      "Name": "dsc-bicep-ext",
+      "Kind": "CLI",
+      "RelativePath": "dsc-bicep-ext",
+      "IsRust": true,
+      "Binaries": [
+        "dsc-bicep-ext"
+      ]
+    },
+    {
       "Name": "extensions/appx",
       "Kind": "Extension",
       "RelativePath": "extensions/appx",
@@ -171,6 +194,17 @@
         "Windows": [
           "appx-discover.ps1",
           "appx.dsc.extension.json"
+        ]
+      }
+    },
+    {
+      "Name": "extensions/powershell",
+      "Kind": "Extension",
+      "RelativePath": "extensions/powershell",
+      "CopyFiles": {
+        "All": [
+          "powershell.discover.ps1",
+          "powershell.dsc.extension.json"
         ]
       }
     },
@@ -391,6 +425,21 @@
       }
     },
     {
+      "Name": "windows_service",
+      "Kind": "Resource",
+      "RelativePath": "resources/windows_service",
+      "SupportedPlatformOS": "Windows",
+      "IsRust": true,
+      "Binaries": [
+        "windows_service"
+      ],
+      "CopyFiles": {
+        "Windows": [
+          "windows_service.dsc.resource.json"
+        ]
+      }
+    },
+    {
       "Name": "dsctest",
       "Kind": "Resource",
       "RelativePath": "tools/dsctest",
@@ -429,6 +478,13 @@
       "Binaries": [
         "y2j"
       ]
+    },
+    {
+      "Name": "xtask",
+      "Kind": "CLI",
+      "RelativePath": "xtask",
+      "IsRust": true,
+      "TestOnly": true
     }
   ]
 }

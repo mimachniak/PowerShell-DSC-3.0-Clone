@@ -1,0 +1,259 @@
+{
+    "$schema": "https://aka.ms/dsc/schemas/v3/bundled/resource/manifest.json",
+    "type": "Microsoft.Windows/SelfSignedCertificate",
+    "description": "Generate and manage self-signed certificates with configurable options",
+    "tags": [
+        "Windows",
+        "Security",
+        "Certificate",
+        "SelfSigned"
+    ],
+    "version": "0.1.0",
+    "get": {
+        "executable": "pwsh",
+        "args": [
+            "-NoLogo",
+            "-NonInteractive",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "selfsignedcertificate.ps1",
+            "get"
+        ],
+        "input": "stdin"
+    },
+    "set": {
+        "executable": "pwsh",
+        "args": [
+            "-NoLogo",
+            "-NonInteractive",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "selfsignedcertificate.ps1",
+            "set"
+        ],
+        "input": "stdin",
+        "implementsPretest": true,
+        "return": "state"
+    },
+    "test": {
+        "executable": "pwsh",
+        "args": [
+            "-NoLogo",
+            "-NonInteractive",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "selfsignedcertificate.ps1",
+            "test"
+        ],
+        "input": "stdin",
+        "return": "state"
+    },
+    "delete": {
+        "executable": "pwsh",
+        "args": [
+            "-NoLogo",
+            "-NonInteractive",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "selfsignedcertificate.ps1",
+            "delete"
+        ],
+        "input": "stdin"
+    },
+    "exitCodes": {
+        "0": "Success",
+        "1": "Error - operation failed",
+        "2": "Certificate generation failed",
+        "3": "Invalid input",
+        "4": "Access denied"
+    },
+    "schema": {
+        "embedded": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "SelfSignedCertificate",
+            "type": "object",
+            "required": [
+                "subject"
+            ],
+            "properties": {
+                "subject": {
+                    "type": "string",
+                    "description": "Certificate subject name (e.g., CN=MyCert, CN=www.example.com)"
+                },
+                "dnsNames": {
+                    "type": "array",
+                    "description": "Subject Alternative Names (DNS names)",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "friendlyName": {
+                    "type": "string",
+                    "description": "Friendly display name for the certificate"
+                },
+                "keyLength": {
+                    "type": "integer",
+                    "description": "RSA key length in bits",
+                    "enum": [
+                        2048,
+                        4096
+                    ],
+                    "default": 2048
+                },
+                "keyAlgorithm": {
+                    "type": "string",
+                    "description": "Key algorithm to use",
+                    "enum": [
+                        "RSA",
+                        "ECDSA_nistP256",
+                        "ECDSA_nistP384",
+                        "ECDSA_nistP521"
+                    ],
+                    "default": "RSA"
+                },
+                "hashAlgorithm": {
+                    "type": "string",
+                    "description": "Hash algorithm for signing",
+                    "enum": [
+                        "SHA256",
+                        "SHA384",
+                        "SHA512"
+                    ],
+                    "default": "SHA256"
+                },
+                "validityInDays": {
+                    "type": "integer",
+                    "description": "Certificate validity period in days",
+                    "default": 365,
+                    "minimum": 1,
+                    "maximum": 3650
+                },
+                "notBefore": {
+                    "type": "string",
+                    "description": "Certificate validity start date (ISO 8601 format). Defaults to now."
+                },
+                "keyUsage": {
+                    "type": "array",
+                    "description": "Key usage extensions",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "DigitalSignature",
+                            "KeyEncipherment",
+                            "DataEncipherment",
+                            "KeyAgreement",
+                            "CertSign",
+                            "CRLSign",
+                            "None"
+                        ]
+                    },
+                    "default": [
+                        "DigitalSignature",
+                        "KeyEncipherment"
+                    ]
+                },
+                "enhancedKeyUsage": {
+                    "type": "array",
+                    "description": "Enhanced key usage (purpose) OIDs or friendly names",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "ServerAuthentication",
+                            "ClientAuthentication",
+                            "CodeSigning",
+                            "EmailProtection",
+                            "DocumentEncryption"
+                        ]
+                    }
+                },
+                "certificateType": {
+                    "type": "string",
+                    "description": "Type of certificate to create",
+                    "enum": [
+                        "SSLServerAuthentication",
+                        "CodeSigningCert",
+                        "DocumentEncryptionCert",
+                        "Custom"
+                    ],
+                    "default": "SSLServerAuthentication"
+                },
+                "storeName": {
+                    "type": "string",
+                    "description": "Certificate store name",
+                    "enum": [
+                        "My",
+                        "Root",
+                        "CA",
+                        "TrustedPublisher",
+                        "TrustedPeople"
+                    ],
+                    "default": "My"
+                },
+                "storeLocation": {
+                    "type": "string",
+                    "description": "Certificate store location",
+                    "enum": [
+                        "CurrentUser",
+                        "LocalMachine"
+                    ],
+                    "default": "CurrentUser"
+                },
+                "exportable": {
+                    "type": "boolean",
+                    "description": "Whether the private key can be exported",
+                    "default": true
+                },
+                "keySpec": {
+                    "type": "string",
+                    "description": "Key specification",
+                    "enum": [
+                        "KeyExchange",
+                        "Signature",
+                        "None"
+                    ],
+                    "default": "KeyExchange"
+                },
+                "provider": {
+                    "type": "string",
+                    "description": "Cryptographic provider",
+                    "default": "Microsoft Enhanced RSA and AES Cryptographic Provider"
+                },
+                "thumbprint": {
+                    "type": "string",
+                    "description": "Output: Certificate thumbprint (read-only)"
+                },
+                "notAfter": {
+                    "type": "string",
+                    "description": "Output: Certificate expiration date (read-only)"
+                },
+                "ensure": {
+                    "type": "string",
+                    "description": "Desired state of the certificate",
+                    "enum": [
+                        "Present",
+                        "Absent"
+                    ],
+                    "default": "Present"
+                },
+                "force": {
+                    "type": "boolean",
+                    "description": "Replace existing certificate if it exists",
+                    "default": false
+                },
+                "_inDesiredState": {
+                    "type": "boolean",
+                    "description": "Indicates if certificate is in desired state"
+                }
+            },
+            "additionalProperties": false
+        }
+    }
+}

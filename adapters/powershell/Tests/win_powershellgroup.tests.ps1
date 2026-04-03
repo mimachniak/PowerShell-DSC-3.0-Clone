@@ -231,16 +231,14 @@ class PSClassResource {
         )
         Write-Verbose "[TEST]Checking credentials"
         Write-Verbose "[TEST]Checking credentials UserName:  $($Credential.UserName)"
-        Write-Verbose "[TEST]Checking credentials Password:  $($Credential.Password)"
+        Write-Verbose "[TEST]Checking credentials Password:  <redacted>"
 
       if ($null -eq $Credential) {
-              throw 'Credential property is required'
               $inDesiredState = $false
               return $false
             }
 
         if ($Credential.UserName -ne 'MyUser') {
-                throw 'Invalid user name'
                 $inDesiredState = $false
         } else {
                 $inDesiredState = $true
@@ -265,13 +263,11 @@ class PSClassResource {
         )
 
           if ($null -eq $Credential) {
-              throw 'Credential property is required'
               $inDesiredState = $false
               return $false
             }
 
             if ($Credential.UserName -ne 'MyUser') {
-                    throw 'Invalid user name'
                     $inDesiredState = $false
             } else {
                     $inDesiredState = $true
@@ -291,7 +287,6 @@ class PSClassResource {
         [Key] string Name;
         [Required, Description("Test Credentials for Script Base"), EmbeddedInstance("MSFT_Credential")] String Credential;
     };
-
 "@
 
     $ProgramFileModule = "$env:ProgramFiles\WindowsPowerShell\Modules"
@@ -500,26 +495,25 @@ $out | Should -BeNullOrEmpty
   }
 
   It 'Config calling PS Resource directly works for <operation> with metadata <metadata> and adapter <adapter>' -TestCases @(
-    @{ Operation = 'get'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Windows/WindowsPowerShell' }
-    @{ Operation = 'set'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Windows/WindowsPowerShell' }
-    @{ Operation = 'test'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Windows/WindowsPowerShell' }
-    @{ Operation = 'get'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
-    @{ Operation = 'set'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
-    @{ Operation = 'test'; metadata = 'Microsoft.DSC'; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
-    @{ Operation = 'get'; metadata = 'Ignored' }
-    @{ Operation = 'set'; metadata = 'Ignored' }
-    @{ Operation = 'test'; metadata = 'Ignored' }
+    @{ Operation = 'get'; directive = 'requireAdapter: '; adapter = 'Microsoft.Windows/WindowsPowerShell' }
+    @{ Operation = 'set'; directive = 'requireAdapter: '; adapter = 'Microsoft.Windows/WindowsPowerShell' }
+    @{ Operation = 'test'; directive = 'requireAdapter: '; adapter = 'Microsoft.Windows/WindowsPowerShell' }
+    @{ Operation = 'get'; directive = 'requireAdapter: '; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
+    @{ Operation = 'set'; directive = 'requireAdapter: '; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
+    @{ Operation = 'test'; directive = 'requireAdapter: '; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
+    @{ Operation = 'get'; directive = ''; adapter = '' }
+    @{ Operation = 'set'; directive = ''; adapter = '' }
+    @{ Operation = 'test'; directive = ''; adapter = '' }
   ) {
-    param($Operation, $metadata, $adapter)
+    param($Operation, $directive, $adapter)
 
     $yaml = @"
             `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
             resources:
             - name: Class-resource Info
               type: PSClassResource/PSClassResource
-              metadata:
-                ${metadata}:
-                  requireAdapter: $adapter
+              directives:
+                $directive$adapter
               properties:
                 Name: TestInstance
                 Credential:
@@ -545,11 +539,9 @@ $out | Should -BeNullOrEmpty
         $out.results[0].result.inDesiredState | Should -BeTrue -Because $text
       }
     }
-    if ($metadata -eq 'Microsoft.DSC') {
+    if ($directive -eq 'requireAdapter: ') {
       "$TestDrive/tracing.txt" | Should -FileContentMatch "Invoking $Operation for '$adapter'" -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
-      if ($adapter -eq 'Microsoft.Adapter/WindowsPowerShell') {
-        "$TestDrive/tracing.txt" | Should -FileContentMatch "Resource 'Microsoft.Windows/WindowsPowerShell' is deprecated" -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
-      }
+
     }
   }
 }

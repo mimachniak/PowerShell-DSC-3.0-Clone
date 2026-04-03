@@ -153,6 +153,8 @@ class DscArtifactDirectoryPath {
     [string]$BinRoot
     [string]$Bin
     [string]$RustTarget
+    [string]$DebTarget
+    [string]$RpmTarget
     [string]$MsixBundle
     [string]$MsixTarget
     [string]$ZipTarget
@@ -370,7 +372,7 @@ function Get-RustUp {
         if ($null -ne (Get-Command msrustup -CommandType Application -ErrorAction Ignore)) {
             Write-Verbose -Verbose "Using msrustup"
             $rustup = 'msrustup'
-            $channel = 'ms-stable'
+            $channel = 'ms-prod-1.93'
             if ($architecture -eq 'current') {
                 $env:MSRUSTUP_TOOLCHAIN = "$architecture"
             }
@@ -435,6 +437,8 @@ function Update-Rust {
 
         Write-Verbose -Verbose "Rust found, updating..."
         $rustup, $channel = Get-RustUp
+        & $rustup toolchain install $channel
+        & $rustup default $channel
         & $rustup update
     }
 }
@@ -499,6 +503,19 @@ function Install-TreeSitter {
 
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to install tree-sitter-cli"
+        }
+
+        # Ensure cargo bin directory is in PATH so tree-sitter can be found
+        if (!$IsWindows) {
+            $cargoBin = "$env:HOME/.cargo/bin"
+            if ($env:PATH -notlike "*$cargoBin*") {
+                $env:PATH += ":$cargoBin"
+            }
+        } else {
+            $cargoBin = "$env:USERPROFILE\.cargo\bin"
+            if ($env:PATH -notlike "*$cargoBin*") {
+                $env:PATH += ";$cargoBin"
+            }
         }
     }
 }
@@ -568,17 +585,27 @@ function Install-Clippy {
         $Architecture = 'current'
     )
 
+    begin {
+    }
+
     process {
         Write-Verbose -Verbose "Installing clippy..."
         if ($UseCFS) {
             cargo install clippy --config .cargo/config.toml
         } else {
+            $rustup, $channel = Get-RustUp
+
+            if ($rustup -eq 'msrustup') {
+                Write-Verbose -Verbose "Clippy is already included with msrustup"
+                return
+            }
+
             if ($Architecture -ne 'current') {
                 write-verbose -verbose "Installing clippy for $Architecture"
-                rustup component add clippy --target $Architecture
+                & $rustup component add clippy --target $Architecture
             } else {
                 write-verbose -verbose "Installing clippy for current architecture"
-                rustup component add clippy
+                & $rustup component add clippy
             }
         }
         if ($LASTEXITCODE -ne 0) {
@@ -718,6 +745,7 @@ function Install-Protobuf {
                 Install-ProtobufRelease -arch $arch
             } elseif (Test-CommandAvailable -Name 'apt') {
                 Write-Verbose -Verbose "Using apt to install Protobuf"
+                sudo apt update
                 sudo apt install -y protobuf-compiler
                 Write-Verbose -Verbose (Get-Command protoc | Out-String)
                 Write-Verbose -Verbose "protoc version: $(protoc --version)"
@@ -744,7 +772,7 @@ function Install-PowerShellTestPrerequisite {
             $repository = 'CFS'
             if ($null -eq (Get-PSResourceRepository -Name CFS -ErrorAction Ignore)) {
                 "Registering CFS repository"
-                Register-PSResourceRepository -uri 'https://pkgs.dev.azure.com/powershell/PowerShell/_packaging/powershell/nuget/v2' -Name CFS -Trusted
+                Register-PSResourceRepository -Uri "https://pkgs.dev.azure.com/powershell/PowerShell/_packaging/PowerShellGalleryMirror/nuget/v3/index.json" -Name CFS -Trusted
             }
         }
     }
@@ -752,10 +780,10 @@ function Install-PowerShellTestPrerequisite {
     process {
         if ($IsWindows) {
             # PSDesiredStateConfiguration module is needed for Microsoft.Windows/WindowsPowerShell adapter
-            $FullyQualifiedName = @{ModuleName="PSDesiredStateConfiguration";ModuleVersion="2.0.7"}
+            $FullyQualifiedName = @{ModuleName="PSDesiredStateConfiguration";ModuleVersion="2.0.8"}
             if (-not(Get-Module -ListAvailable -FullyQualifiedName $FullyQualifiedName))
             {
-                Install-PSResource -Name PSDesiredStateConfiguration -Version 2.0.7 -Repository $repository -TrustRepository
+                Install-PSResource -Name PSDesiredStateConfiguration -Version 2.0.8 -Repository $repository -TrustRepository
             }
         }
 
@@ -779,24 +807,6 @@ function Install-PowerShellTestPrerequisite {
 #endregion Install tools functions
 
 #region    Environment setup utility functions
-function Set-RustChannel {
-    <#
-        .SYNOPSIS
-        Sets the rust default toolchain to the stable channel.
-    #>
-
-    [CmdletBinding()]
-    param()
-
-    begin {
-        $rustup, $channel = Get-RustUp
-    }
-
-    process {
-        & $rustup default stable
-    }
-}
-
 function Set-CargoEnvironment {
     <#
         .SYNOPSIS
@@ -804,8 +814,7 @@ function Set-CargoEnvironment {
     #>
     [cmdletbinding()]
     param(
-        [switch]$UseCFS,
-        [switch]$UseCFSAuth
+        [switch]$UseCFS
     )
 
     process {
@@ -813,28 +822,6 @@ function Set-CargoEnvironment {
             Write-Host "Using CFS for cargo source replacement"
             ${env:CARGO_SOURCE_crates-io_REPLACE_WITH} = $null
             $env:CARGO_REGISTRIES_CRATESIO_INDEX = $null
-
-            if ($UseCFSAuth) {
-                if ($null -eq (Get-Command 'az' -ErrorAction Ignore)) {
-                    throw "Azure CLI not found"
-                }
-
-                if ($null -ne (Get-Command az -ErrorAction Ignore)) {
-                    Write-Host "Getting token"
-                    $accessToken = az account get-access-token --query accessToken --resource 499b84ac-1321-427f-aa17-267ca6975798 -o tsv
-                    if ($LASTEXITCODE -ne 0) {
-                        Write-Warning "Failed to get access token, use 'az login' first, or use '-useCratesIO' to use crates.io.  Proceeding with anonymous access."
-                    } else {
-                        $header = "Bearer $accessToken"
-                        $env:CARGO_REGISTRIES_POWERSHELL_TOKEN = $header
-                        $env:CARGO_REGISTRIES_POWERSHELL_CREDENTIAL_PROVIDER = 'cargo:token'
-                        $env:CARGO_REGISTRIES_POWERSHELL_INDEX = "sparse+https://pkgs.dev.azure.com/powershell/PowerShell/_packaging/powershell~force-auth/Cargo/index/"
-                    }
-                }
-                else {
-                    Write-Warning "Azure CLI not found, proceeding with anonymous access."
-                }
-            }
         } else {
             # this will override the config.toml
             Write-Host "Setting CARGO_SOURCE_crates-io_REPLACE_WITH to 'crates-io'"
@@ -1135,6 +1122,8 @@ function Get-ArtifactDirectoryPath {
             BinRoot    = Join-Path $PSScriptRoot 'bin'
             Bin        = Join-Path $PSScriptRoot 'bin' $Architecture $configuration
             RustTarget = $env:CARGO_TARGET_DIR ?? (Join-Path $PSScriptRoot 'target' $Architecture $configuration)
+            DebTarget  = Join-Path $PSScriptRoot 'bin' $Architecture 'deb'
+            RpmTarget  = Join-Path $PSScriptRoot 'bin' $Architecture 'rpm'
             MsixBundle = Join-Path $PSScriptRoot 'bin' 'msix'
             MsixTarget = Join-Path $PSScriptRoot 'bin' $Architecture 'msix'
             ZipTarget  = Join-Path $PSScriptRoot 'bin' $Architecture 'zip'
@@ -1231,7 +1220,16 @@ function Update-PathEnvironment {
     }
 }
 
-function Find-MakeAppx() {
+function Find-MakeAppx {
+    [CmdletBinding()]
+    param(
+        # When packaging in OneBranch, the MSIX is created on an x64 image for
+        # the arm64 package, and our tooling expects to use the architecture
+        # passed, so we have to override it here. It may be possible to
+        # workaround this in another way, but deferring further investigation.
+        [switch]$UseX64MakeAppx
+    )
+
     $makeappx = Get-Command makeappx -CommandType Application -ErrorAction Ignore
     if ($null -eq $makeappx) {
         # try to find
@@ -1785,6 +1783,128 @@ function Test-ProjectWithPester {
 #endregion Test project functions
 
 #region Package project functions
+function Build-DscDebPackage{
+    [CmdletBinding()]
+    param(
+        [DscProjectBuildData]$BuildData,
+        [DscArtifactDirectoryPath]$ArtifactDirectory,
+        [ValidateSet(
+            'current',
+            'aarch64-pc-windows-msvc',
+            'x86_64-pc-windows-msvc',
+            'aarch64-apple-darwin',
+            'x86_64-apple-darwin',
+            'aarch64-unknown-linux-gnu',
+            'aarch64-unknown-linux-musl',
+            'x86_64-unknown-linux-gnu',
+            'x86_64-unknown-linux-musl'
+        )]
+        $Architecture = 'current',
+        [switch]$Release
+    )
+
+    begin {
+        Write-Verbose -Verbose "Starting DEB package creation for architecture '$Architecture'"
+        if (!$IsLinux) {
+            throw "DEB package creation is only supported on Linux"
+        }
+
+        # Check if dpkg-deb is available
+        if ($null -eq (Get-Command dpkg-deb -ErrorAction Ignore)) {
+            throw "dpkg-deb not found. Please install dpkg package (e.g., 'sudo apt install dpkg' or 'sudo dnf install dpkg')"
+        }
+
+        if ($null -eq $BuildData) {
+            $BuildData = Import-DscBuildData
+        }
+        $filesForPackage = $BuildData.PackageFiles.Linux
+        if ($null -eq $ArtifactDirectory) {
+            $artifactDirectory   = Get-ArtifactDirectoryPath -Architecture $Architecture -Release:$Release
+        }
+
+        $debTarget = $artifactDirectory.DebTarget
+        $bin = $artifactDirectory.Bin
+        $productVersion = Get-DscCliVersion
+        # Determine DEB architecture
+        $debArch = if ($architecture -eq 'current') {
+            # Detect current system architecture
+            $currentArch = uname -m
+            if ($currentArch -eq 'x86_64') {
+                'amd64'
+            } elseif ($currentArch -eq 'aarch64') {
+                'arm64'
+            } else {
+                throw "Unsupported current architecture for DEB: $currentArch"
+            }
+        } elseif ($architecture -eq 'aarch64-unknown-linux-musl' -or $architecture -eq 'aarch64-unknown-linux-gnu') {
+            'arm64'
+        } elseif ($architecture -eq 'x86_64-unknown-linux-musl' -or $architecture -eq 'x86_64-unknown-linux-gnu') {
+            'amd64'
+        } else {
+            throw "Unsupported architecture for DEB: $architecture"
+        }
+
+        Write-Verbose -Verbose "Building DEB package"
+        $debPackageName = "dsc_$productVersion-1_$debArch.deb"
+        $finalDebPath = Join-Path $artifactDirectory.BinRoot $debPackageName
+    }
+
+    process {
+        if (Test-Path $debTarget) {
+            Remove-Item $debTarget -Recurse -ErrorAction Stop -Force
+        }
+
+        New-Item -ItemType Directory $debTarget > $null
+
+        # Create DEB package structure
+        $debBuildRoot = Join-Path $debTarget 'dsc'
+        $debDirs = @('DEBIAN', 'opt/dsc', 'usr/bin')
+        foreach ($dir in $debDirs) {
+            New-Item -ItemType Directory -Path (Join-Path $debBuildRoot $dir) -Force > $null
+        }
+
+        $stagingDir = Join-Path $debBuildRoot 'opt' 'dsc'
+
+        foreach ($file in $filesForPackage) {
+            if ((Get-Item "$bin\$file") -is [System.IO.DirectoryInfo]) {
+                Copy-Item "$bin\$file" "$stagingDir\$file" -Recurse -ErrorAction Stop
+            } else {
+                Copy-Item "$bin\$file" $stagingDir -ErrorAction Stop
+            }
+        }
+
+        # Create symlinks in usr/bin
+        $symlinkPath = Join-Path $debBuildRoot 'usr' 'bin' 'dsc'
+        New-Item -ItemType SymbolicLink -Path $symlinkPath -Target '/opt/dsc/dsc' -Force > $null
+
+        $symlinkPath = Join-Path $debBuildRoot 'usr' 'bin' 'dsc-bicep-ext'
+        New-Item -ItemType SymbolicLink -Path $symlinkPath -Target '/opt/dsc/dsc-bicep-ext' -Force > $null
+
+        # Read the control template and replace placeholders
+        $controlTemplate = Get-Content "$PSScriptRoot/packaging/deb/control" -Raw
+        $controlContent = $controlTemplate.Replace('VERSION_PLACEHOLDER', $productVersion).Replace('ARCH_PLACEHOLDER', $debArch)
+        $controlFile = Join-Path $debBuildRoot 'DEBIAN' 'control'
+        Set-Content -Path $controlFile -Value $controlContent
+
+        # Build the DEB
+        dpkg-deb --build $debBuildRoot 2>&1 > $debTarget/debbuild.log
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error (Get-Content $debTarget/debbuild.log -Raw)
+            throw "Failed to create DEB package"
+        }
+
+        # Move the DEB to the bin directory with the correct name
+        $builtDeb = "$debBuildRoot.deb"
+        if (!(Test-Path $builtDeb)) {
+            throw "DEB package was not created"
+        }
+
+        Move-Item $builtDeb $finalDebPath -Force
+        Write-Host -ForegroundColor Green "`nDEB package is created at $finalDebPath"
+    }
+}
+
 function Build-DscMsixPackage {
     [CmdletBinding()]
     param(
@@ -1808,11 +1928,13 @@ function Build-DscMsixPackage {
             'x86_64-unknown-linux-musl'
         )]
         $Architecture = 'current',
-        [switch]$Release
+        [switch]$Release,
+        [switch]$UseX64MakeAppx
     )
 
     begin {
-        if ($IsWindows) {
+        Write-Verbose -Verbose "Starting MSIX package creation for architecture '$Architecture' and package type '$packageType'"
+        if (!$IsWindows) {
             throw "MSIX packaging is only supported on Windows"
         }
         if ($null -eq $BuildData) {
@@ -1825,7 +1947,7 @@ function Build-DscMsixPackage {
         $productVersion = Get-DscCliVersion
         $isPrivate = $packageType -eq 'msix-private'
         $isPreview = $productVersion -like '*-*'
-        $makeappx = Find-MakeAppx
+        $makeappx = Find-MakeAppx -UseX64MakeAppx:$UseX64MakeAppx
         $makepri  = Get-Item (Join-Path $makeappx.Directory "makepri.exe") -ErrorAction Stop
     }
 
@@ -1835,7 +1957,7 @@ function Build-DscMsixPackage {
             $msixArguments = @(
                 'bundle'
                 '/d', $artifactDirectory.MsixBundle
-                '/p', "$($artifactDirectory.Bin)\$packageName.msixbundle"
+                '/p', "$($artifactDirectory.BinRoot)\$packageName.msixbundle"
             )
             & $makeappx @msixArguments
             return
@@ -1884,12 +2006,18 @@ function Build-DscMsixPackage {
         $arch = ($architecture -eq 'aarch64-pc-windows-msvc') ? 'arm64' : 'x64'
 
         # Appx manifest needs to be in root of source path, but the embedded version needs to be updated
-        # cp-459155 is 'CN=Microsoft Windows Store Publisher (Store EKU), O=Microsoft Corporation, L=Redmond, S=Washington, C=US'
-        # authenticodeFormer is 'CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US'
-        $releasePublisher = 'CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US'
         # Retrieve manifest and set version correctly
         $appxManifest = Get-Content "$PSScriptRoot\packaging\msix\AppxManifest.xml" -Raw
-        $appxManifest = $appxManifest.Replace('$VERSION$', $ProductVersion).Replace('$ARCH$', $Arch).Replace('$PRODUCTNAME$', $productName).Replace('$DISPLAYNAME$', $displayName).Replace('$PUBLISHER$', $releasePublisher)
+        if ($Release) {
+            # CP-459155 is 'CN=Microsoft Windows Store Publisher (Store EKU), O=Microsoft Corporation, L=Redmond, S=Washington, C=US'
+            # authenticodeFormer is 'CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US'
+            $publisher = 'CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US'
+        } else {
+            # For debug builds, use a self-signed developer identity per
+            # https://learn.microsoft.com/en-us/windows/msix/package/unsigned-package
+            $publisher = 'CN=AppModelSamples, OID.2.25.311729368913984317654407730594956997722=1'
+        }
+        $appxManifest = $appxManifest.Replace('$VERSION$', $ProductVersion).Replace('$ARCH$', $Arch).Replace('$PRODUCTNAME$', $productName).Replace('$DISPLAYNAME$', $displayName).Replace('$PUBLISHER$', $publisher)
         # Remove the output directory if it already exists, then recreate it.
         $msixTarget = $artifactDirectory.MsixTarget
         if (Test-Path $msixTarget) {
@@ -1970,7 +2098,132 @@ function Build-DscMsixPackage {
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to create msix package"
         }
-        Write-Host -ForegroundColor Green "`nMSIX package is created at $packageName"
+
+        if ($Release) {
+            Write-Host -ForegroundColor Green "`nMSIX package is created at $packageName"
+        } else {
+            Write-Host -ForegroundColor Green "`nInstall the debug MSIX package with:`nAdd-AppxPackage -AllowUnsigned -Path $packageName"
+        }
+    }
+}
+
+function Build-DscRpmPackage {
+    [CmdletBinding()]
+    param(
+        [DscProjectBuildData]$BuildData,
+        [DscArtifactDirectoryPath]$ArtifactDirectory,
+        [ValidateSet(
+            'current',
+            'aarch64-pc-windows-msvc',
+            'x86_64-pc-windows-msvc',
+            'aarch64-apple-darwin',
+            'x86_64-apple-darwin',
+            'aarch64-unknown-linux-gnu',
+            'aarch64-unknown-linux-musl',
+            'x86_64-unknown-linux-gnu',
+            'x86_64-unknown-linux-musl'
+        )]
+        $Architecture = 'current',
+        [switch]$Release
+    )
+
+    begin {
+        Write-Verbose -Verbose "Starting RPM package creation for architecture '$Architecture'"
+        if (!$IsLinux) {
+            throw "RPM package creation is only supported on Linux"
+        }
+
+        # Check if rpmbuild is available
+        if ($null -eq (Get-Command rpmbuild -ErrorAction Ignore)) {
+            throw "rpmbuild not found. Please install rpm-build package (e.g., 'sudo apt install rpm build-essential' or 'sudo dnf install rpm-build')"
+        }
+
+        if ($null -eq $BuildData) {
+            $BuildData = Import-DscBuildData
+        }
+        $filesForPackage = $BuildData.PackageFiles.Linux
+        if ($null -eq $ArtifactDirectory) {
+            $artifactDirectory   = Get-ArtifactDirectoryPath -Architecture $Architecture -Release:$Release
+        }
+
+        $rpmTarget = $artifactDirectory.RpmTarget
+        $bin = $artifactDirectory.Bin
+        $productVersion = Get-DscCliVersion
+        # Determine RPM architecture
+        $rpmArch = if ($architecture -eq 'current') {
+            # Detect current system architecture
+            $currentArch = uname -m
+            if ($currentArch -eq 'x86_64') {
+                'x86_64'
+            } elseif ($currentArch -eq 'aarch64') {
+                'aarch64'
+            } else {
+                throw "Unsupported current architecture for RPM: $currentArch"
+            }
+        } elseif ($architecture -eq 'aarch64-unknown-linux-musl' -or $architecture -eq 'aarch64-unknown-linux-gnu') {
+            'aarch64'
+        } elseif ($architecture -eq 'x86_64-unknown-linux-musl' -or $architecture -eq 'x86_64-unknown-linux-gnu') {
+            'x86_64'
+        } else {
+            throw "Unsupported architecture for RPM: $architecture"
+        }
+
+        Write-Verbose -Verbose "Building RPM package"
+        $rpmPackageName = "dsc_$productVersion-1_$rpmArch.rpm"
+        $finalRpmPath = Join-Path $artifactDirectory.BinRoot $rpmPackageName
+    }
+
+    process {
+        if (Test-Path $rpmTarget) {
+            Remove-Item $rpmTarget -Recurse -ErrorAction Stop -Force
+        }
+
+        New-Item -ItemType Directory $rpmTarget > $null
+
+        # Create RPM build directories
+        $rpmBuildRoot = Join-Path $rpmTarget 'rpmbuild'
+        $rpmDirs = @('BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS')
+        foreach ($dir in $rpmDirs) {
+            New-Item -ItemType Directory -Path (Join-Path $rpmBuildRoot $dir) -Force > $null
+        }
+
+        # Create a staging directory for the files
+        $stagingDir = Join-Path $rpmBuildRoot 'SOURCES' 'dsc_files'
+        New-Item -ItemType Directory $stagingDir > $null
+
+        foreach ($file in $filesForPackage) {
+            if ((Get-Item "$bin\$file") -is [System.IO.DirectoryInfo]) {
+                Copy-Item "$bin\$file" "$stagingDir\$file" -Recurse -ErrorAction Stop
+            } else {
+                Copy-Item "$bin\$file" $stagingDir -ErrorAction Stop
+            }
+        }
+
+        # Read the spec template and replace placeholders
+        $specTemplate = Get-Content "$PSScriptRoot/packaging/rpm/dsc.spec" -Raw
+        $specContent = $specTemplate.Replace('VERSION_PLACEHOLDER', $productVersion.Replace('-','~')).Replace('ARCH_PLACEHOLDER', $rpmArch)
+        $specFile = Join-Path $rpmBuildRoot 'SPECS' 'dsc.spec'
+        Set-Content -Path $specFile -Value $specContent
+
+        Write-Verbose -Verbose "Building RPM package"
+        # Build the RPM
+        rpmbuild -v -bb --define "_topdir $rpmBuildRoot" --buildroot "$rpmBuildRoot/BUILDROOT" $specFile 2>&1 > $rpmTarget/rpmbuild.log
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error (Get-Content $rpmTarget/rpmbuild.log -Raw)
+            throw "Failed to create RPM package"
+        }
+
+        # Copy the RPM to the bin directory
+        $builtRpm = Get-ChildItem -Path (Join-Path $rpmBuildRoot 'RPMS') -Recurse -Filter '*.rpm' | Select-Object -First 1
+        if ($null -eq $builtRpm) {
+            throw "RPM package was not created"
+        }
+
+        $finalRpmPath = Join-Path $PSScriptRoot 'bin' $builtRpm.Name
+        Copy-Item $builtRpm.FullName $finalRpmPath -Force
+
+        Write-Host -ForegroundColor Green "`nRPM package is created at $finalRpmPath"
     }
 }
 
@@ -1995,6 +2248,7 @@ function Build-DscZipPackage {
     )
 
     begin {
+        Write-Verbose -Verbose "Starting ZIP package creation for architecture '$Architecture'"
         if ($Architecture -eq 'current') {
             throw 'Building a zip package requires a specific architecture targeting Windows'
         }
@@ -2058,6 +2312,7 @@ function Build-DscTgzPackage {
     )
 
     begin {
+        Write-Verbose -Verbose "Starting tgz package creation for architecture '$Architecture'"
         if ($Architecture -eq 'current') {
             throw 'Building a tgz package requires a specific architecture targeting Linux or macOS'
         }
@@ -2136,9 +2391,11 @@ function Build-DscPackage {
     param(
         [DscProjectBuildData]$BuildData,
         [ValidateSet(
+            'deb',
             'msix',
             'msix-private',
             'msixbundle',
+            'rpm',
             'tgz',
             'zip'
         )]
@@ -2155,7 +2412,8 @@ function Build-DscPackage {
             'x86_64-unknown-linux-musl'
         )]
         $Architecture = 'current',
-        [switch]$Release
+        [switch]$Release,
+        [switch]$UseX64MakeAppx
     )
 
     begin {
@@ -2175,14 +2433,25 @@ function Build-DscPackage {
 
     process {
         Write-Verbose "Packaging DSC..."
-        if ($packageType -match 'msix') {
-            Build-DscMsixPackage @buildParams -PackageType $packageType
-        } elseif ($packageType -eq 'tgz') {
-            Build-DscTgzPackage @buildParams
-        } elseif ($packageType -eq 'zip') {
-            Build-DscZipPackage @buildParams
-        } else {
-            throw "Unhandled package type '$packageType'"
+        switch ($packageType) {
+            'deb' {
+                Build-DscDebPackage @buildParams
+            }
+            {$_ -in @('msix', 'msix-private', 'msixbundle')} {
+                Build-DscMsixPackage @buildParams -PackageType $packageType -UseX64MakeAppx:$UseX64MakeAppx
+            }
+            'rpm' {
+                Build-DscRpmPackage @buildParams
+            }
+            'tgz' {
+                Build-DscTgzPackage @buildParams
+            }
+            'zip' {
+                Build-DscZipPackage @buildParams
+            }
+            default {
+                throw "Unhandled package type '$packageType'"
+            }
         }
     }
 }
