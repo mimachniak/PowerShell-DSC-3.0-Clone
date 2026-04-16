@@ -4,6 +4,7 @@
 use crate::discovery::{command_discovery::ImportedManifest, discovery_trait::DiscoveryFilter};
 use crate::discovery::discovery_trait::DiscoveryKind;
 use crate::progress::ProgressFormat;
+use crate::types::TypeNameFilter;
 
 use configure::config_doc::ExecutionKind;
 use dscerror::DscError;
@@ -50,12 +51,17 @@ impl DscManager {
     ///
     /// * `name` - The name of the resource to find, can have wildcards.
     ///
-    #[must_use]
     pub fn find_resource(&mut self, filter: &DiscoveryFilter) -> Result<Option<&DscResource>, DscError> {
         self.discovery.find_resource(filter)
     }
 
-    pub fn list_available(&mut self, kind: &DiscoveryKind, type_name_filter: &str, adapter_name_filter: &str, progress_format: ProgressFormat) -> Vec<ImportedManifest> {
+    pub fn list_available(
+        &mut self,
+        kind: &DiscoveryKind,
+        type_name_filter: &TypeNameFilter,
+        adapter_name_filter: Option<&TypeNameFilter>,
+        progress_format: ProgressFormat
+    ) -> Vec<ImportedManifest> {
         self.discovery.list_available(kind, type_name_filter, adapter_name_filter, progress_format)
     }
 

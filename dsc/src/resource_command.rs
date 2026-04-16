@@ -6,12 +6,13 @@ use crate::util::{EXIT_DSC_ERROR, EXIT_INVALID_ARGS, EXIT_JSON_ERROR, EXIT_DSC_R
 use dsc_lib::configure::config_doc::{Configuration, ExecutionKind};
 use dsc_lib::configure::add_resource_export_results_to_configuration;
 use dsc_lib::discovery::discovery_trait::DiscoveryFilter;
-use dsc_lib::dscresources::{resource_manifest::Kind, invoke_result::{GetResult, ResourceGetResponse, ResourceSetResponse, SetResult}};
+use dsc_lib::dscresources::{resource_manifest::Kind, invoke_result::{DeleteResultKind, GetResult, ResourceGetResponse, ResourceSetResponse, SetResult}};
 use dsc_lib::dscresources::dscresource::{Capability, get_diff};
 use dsc_lib::dscerror::DscError;
+use dsc_lib::types::{FullyQualifiedTypeName, ResourceVersionReq};
 use rust_i18n::t;
 use serde_json::Value;
-use tracing::{error, debug};
+use tracing::{debug, error, info};
 
 use dsc_lib::{
     dscresources::dscresource::{Invoke, DscResource},
@@ -19,9 +20,9 @@ use dsc_lib::{
 };
 use std::process::exit;
 
-pub fn get(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, input: &str, format: Option<&GetOutputFormat>) {
+pub fn get(dsc: &mut DscManager, resource_type: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>, input: &str, format: Option<&GetOutputFormat>) {
     let Some(resource) = get_resource(dsc, resource_type, version) else {
-        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.unwrap_or("").to_string()).to_string());
+        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.map_or(String::new(), |v| v.to_string())));
         exit(EXIT_DSC_RESOURCE_NOT_FOUND);
     };
 
@@ -33,8 +34,8 @@ pub fn get(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, inp
 
     match resource.get(input) {
         Ok(result) => {
-            if let GetResult::Resource(response) = &result {
-                if format == Some(&GetOutputFormat::PassThrough) {
+            if let GetResult::Resource(response) = &result
+                && format == Some(&GetOutputFormat::PassThrough) {
                     let json = match serde_json::to_string(&response.actual_state) {
                         Ok(json) => json,
                         Err(err) => {
@@ -45,7 +46,6 @@ pub fn get(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, inp
                     write_object(&json, Some(&OutputFormat::Json), false);
                     return;
                 }
-            }
 
             // convert to json
             let json = match serde_json::to_string(&result) {
@@ -70,10 +70,10 @@ pub fn get(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, inp
     }
 }
 
-pub fn get_all(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, format: Option<&GetOutputFormat>) {
+pub fn get_all(dsc: &mut DscManager, resource_type: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>, format: Option<&GetOutputFormat>) {
     let input = String::new();
     let Some(resource) = get_resource(dsc, resource_type, version) else {
-        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.unwrap_or("").to_string()).to_string());
+        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.map_or(String::new(), |r| r.to_string())));
         exit(EXIT_DSC_RESOURCE_NOT_FOUND);
     };
 
@@ -128,14 +128,14 @@ pub fn get_all(dsc: &mut DscManager, resource_type: &str, version: Option<&str>,
     }
 }
 
-pub fn set(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, input: &str, format: Option<&OutputFormat>) {
+pub fn set(dsc: &mut DscManager, resource_type: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>, input: &str, format: Option<&OutputFormat>, what_if: bool) {
     if input.is_empty() {
         error!("{}", t!("resource_command.setInputEmpty"));
         exit(EXIT_INVALID_ARGS);
     }
 
     let Some(resource) = get_resource(dsc, resource_type, version) else {
-        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.unwrap_or("").to_string()).to_string());
+        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.map_or(String::new(), |v| v.to_string())));
         exit(EXIT_DSC_RESOURCE_NOT_FOUND);
     };
 
@@ -144,6 +144,8 @@ pub fn set(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, inp
         error!("{}: {}", t!("resource_command.invalidOperationOnAdapter"), resource.type_name);
         exit(EXIT_DSC_ERROR);
     }
+
+    let execution_kind = if what_if { ExecutionKind::WhatIf } else { ExecutionKind::Actual };
 
     let exist = match serde_json::from_str::<Value>(input) {
         Ok(v) => {
@@ -168,7 +170,7 @@ pub fn set(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, inp
             }
         };
 
-        if let Err(err) = resource.delete(input) {
+        if let Err(err) = resource.delete(input, &ExecutionKind::Actual) {
             error!("{err}");
             exit(EXIT_DSC_ERROR);
         }
@@ -201,7 +203,7 @@ pub fn set(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, inp
         return;
     }
 
-    match resource.set(input, true, &ExecutionKind::Actual) {
+    match resource.set(input, true, &execution_kind) {
         Ok(result) => {
             // convert to json
             let json = match serde_json::to_string(&result) {
@@ -220,14 +222,14 @@ pub fn set(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, inp
     }
 }
 
-pub fn test(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, input: &str, format: Option<&OutputFormat>) {
+pub fn test(dsc: &mut DscManager, resource_type: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>, input: &str, format: Option<&OutputFormat>) {
     if input.is_empty() {
         error!("{}", t!("resource_command.testInputEmpty"));
         exit(EXIT_INVALID_ARGS);
     }
 
     let Some(resource) = get_resource(dsc, resource_type, version) else {
-        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.unwrap_or("").to_string()).to_string());
+        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.map_or(String::new(), |v| v.to_string())));
         exit(EXIT_DSC_RESOURCE_NOT_FOUND);
     };
 
@@ -256,9 +258,9 @@ pub fn test(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, in
     }
 }
 
-pub fn delete(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, input: &str) {
+pub fn delete(dsc: &mut DscManager, resource_type: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>, input: &str, format: Option<&OutputFormat>, what_if: bool) {
     let Some(resource) = get_resource(dsc, resource_type, version) else {
-        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.unwrap_or("").to_string()).to_string());
+        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.map_or(String::new(), |v| v.to_string())));
         exit(EXIT_DSC_RESOURCE_NOT_FOUND);
     };
 
@@ -268,8 +270,27 @@ pub fn delete(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, 
         exit(EXIT_DSC_ERROR);
     }
 
-    match resource.delete(input) {
-        Ok(()) => {}
+    let execution_kind = if what_if { ExecutionKind::WhatIf } else { ExecutionKind::Actual };
+
+    match resource.delete(input, &execution_kind) {
+        Ok(result) => {
+            match result {
+                DeleteResultKind::ResourceActual => {
+                },
+                DeleteResultKind::ResourceWhatIf(delete_result) => {
+                    match serde_json::to_string(&delete_result) {
+                        Ok(json) => write_object(&json, format, false),
+                        Err(err) => {
+                            error!("JSON: {err}");
+                            exit(EXIT_JSON_ERROR);
+                        }
+                    }
+                },
+                DeleteResultKind::SyntheticWhatIf(_) => {
+                    info!("{} {}", resource.type_name, t!("resource_command.syntheticWhatIf"));
+                }
+            }
+        },
         Err(err) => {
             error!("{err}");
             exit(EXIT_DSC_ERROR);
@@ -277,9 +298,9 @@ pub fn delete(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, 
     }
 }
 
-pub fn schema(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, format: Option<&OutputFormat>) {
+pub fn schema(dsc: &mut DscManager, resource_type: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>, format: Option<&OutputFormat>) {
     let Some(resource) = get_resource(dsc, resource_type, version) else {
-        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.unwrap_or("").to_string()).to_string());
+        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.map_or(String::new(), |v| v.to_string())));
         exit(EXIT_DSC_RESOURCE_NOT_FOUND);
     };
     if resource.kind == Kind::Adapter {
@@ -306,9 +327,9 @@ pub fn schema(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, 
     }
 }
 
-pub fn export(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, input: &str, format: Option<&OutputFormat>) {
+pub fn export(dsc: &mut DscManager, resource_type: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>, input: &str, format: Option<&OutputFormat>) {
     let Some(dsc_resource) = get_resource(dsc, resource_type, version) else {
-        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.unwrap_or("").to_string()).to_string());
+        error!("{}", DscError::ResourceNotFound(resource_type.to_string(), version.map_or(String::new(), |v| v.to_string())).to_string());
         exit(EXIT_DSC_RESOURCE_NOT_FOUND);
     };
 
@@ -334,7 +355,7 @@ pub fn export(dsc: &mut DscManager, resource_type: &str, version: Option<&str>, 
 }
 
 #[must_use]
-pub fn get_resource<'a>(dsc: &'a mut DscManager, resource: &str, version: Option<&str>) -> Option<&'a DscResource> {
+pub fn get_resource<'a>(dsc: &'a mut DscManager, resource: &FullyQualifiedTypeName, version: Option<&ResourceVersionReq>) -> Option<&'a DscResource> {
     //TODO: add dynamically generated resource to dsc
-    dsc.find_resource(&DiscoveryFilter::new(resource, version, None)).unwrap_or(None)
+    dsc.find_resource(&DiscoveryFilter::new(resource, version.cloned(), None)).unwrap_or(None)
 }

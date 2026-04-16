@@ -2,7 +2,7 @@
 
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-using module ./build.helpers.psm1
+using module ./helpers.build.psm1
 
 <#
     .SYNOPSIS
@@ -55,6 +55,8 @@ using module ./build.helpers.psm1
     - `msix-private` - MSIX private package, requires a specific architecture.
     - `msixbundle` - MSIX bundle package, builds for both Windows targets.
     - `tgz` - Packages the project as a `.tar.gz` file, only for Linux/macOS.
+    - `deb` - Packages the project as a `.deb` file, only for Linux.
+    - `rpm` - Packages the project as a `.rpm` file, only for Linux.
     - `zip` - Packages the project as a `.zip` file, only for Windows.
 #>
 [CmdletBinding()]
@@ -75,9 +77,11 @@ param(
     [switch]$Clippy,
     [switch]$SkipBuild,
     [ValidateSet(
+        'deb',
         'msix',
         'msix-private',
         'msixbundle',
+        'rpm',
         'tgz',
         'zip'
     )]
@@ -94,7 +98,6 @@ param(
     [switch]$UseCFS,
     [switch]$UpdateLockFile,
     [switch]$Audit,
-    [switch]$UseCFSAuth,
     [switch]$Clean,
     [switch]$CacheRustBuild,
     [switch]$RustDocs,
@@ -111,9 +114,14 @@ begin {
         $ProgressPreference = 'SilentlyContinue'
     }
 
-    Import-Module ./build.helpers.psm1 -Force -Verbose:$false
+    $progressParams = @{
+        Activity = "Executing build script"
+        Quiet    = $Quiet
+    }
+
+    Import-Module ./helpers.build.psm1 -Force -Verbose:$false
     $usingADO = ($null -ne $env:TF_BUILD)
-    if ($usingADO -or $UseCFSAuth) {
+    if ($usingADO) {
         $UseCFS = $true
     }
     # Import the build data
@@ -165,10 +173,6 @@ process {
     if ($GetPackageVersion) {
         return Get-DscCliVersion @VerboseParam
     }
-    $progressParams = @{
-        Activity = "Executing build script"
-        Quiet    = $Quiet
-    }
     Write-BuildProgress @progressParams
 
     #region    Setup
@@ -183,7 +187,7 @@ process {
         Write-BuildProgress @progressParams -Status 'Configuring Rust environment'
         [hashtable]$priorRustEnvironment = Set-RustEnvironment -CacheRustBuild:$CacheRustBuild @VerboseParam
         Write-BuildProgress @progressParams -Status 'Configuring Cargo environment'
-        Set-CargoEnvironment -UseCFS:$UseCFS -UseCFSAuth:$UseCFSAuth @VerboseParam
+        Set-CargoEnvironment -UseCFS:$UseCFS @VerboseParam
 
         # Install or update rust
         if (!$usingADO) {
@@ -191,15 +195,14 @@ process {
             Update-Rust @VerboseParam
         }
 
-        if (!$usingADO) {
-            Write-BuildProgress @progressParams -Status 'Setting RustUp to default channel'
-            $rustup, $channel = Get-RustUp @VerboseParam
-            & $rustup default stable
-        }
-
         if ($Clippy) {
             Write-BuildProgress @progressParams -Status 'Ensuring Clippy is available and updated'
             Install-Clippy -UseCFS:$UseCFS -Architecture $Architecture @VerboseParam
+        }
+
+        if (!$SkipBuild -and !$SkipLinkCheck -and $IsWindows) {
+            Write-BuildProgress @progressParams -Status "Ensuring Windows C++ build tools are available"
+            Install-WindowsCPlusPlusBuildTools @VerboseParam
         }
 
         if (-not ($SkipBuild -and $Test -and $ExcludeRustTests)) {
@@ -214,10 +217,6 @@ process {
         }
     }
 
-    if (!$SkipBuild -and !$SkipLinkCheck -and $IsWindows) {
-        Write-BuildProgress @progressParams -Status "Ensuring Windows C++ build tools are available"
-        Install-WindowsCPlusPlusBuildTools @VerboseParam
-    }
     #endregion Setup
 
     if (!$SkipBuild) {
@@ -300,10 +299,11 @@ process {
     if (-not [string]::IsNullOrEmpty($PackageType)) {
         $progressParams.Activity = "Packaging"
         $packageParams = @{
-            BuildData    = $BuildData
-            PackageType  = $PackageType
-            Architecture = $Architecture
-            Release      = $Release
+            BuildData      = $BuildData
+            PackageType    = $PackageType
+            Architecture   = $Architecture
+            Release        = $Release
+            UseX64MakeAppx = $UseX64MakeAppx
         }
         Write-BuildProgress @progressParams
         Build-DscPackage @packageParams @VerboseParam

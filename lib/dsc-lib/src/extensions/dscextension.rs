@@ -3,7 +3,7 @@
 
 use crate::extensions::import::ImportMethod;
 use crate::schemas::{dsc_repo::DscRepoSchema, transforms::idiomaticize_string_enum};
-use crate::types::FullyQualifiedTypeName;
+use crate::types::{FullyQualifiedTypeName, SemanticVersion};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use schemars::JsonSchema;
@@ -14,24 +14,26 @@ use std::path::PathBuf;
 #[serde(deny_unknown_fields)]
 #[dsc_repo_schema(base_name = "list", folder_path = "outputs/extension")]
 pub struct DscExtension {
-    /// The namespaced name of the resource.
+    /// The namespaced name of the extension.
     #[serde(rename="type")]
     pub type_name: FullyQualifiedTypeName,
-    /// The version of the resource.
-    pub version: String,
-    /// The capabilities of the resource.
+    /// The version of the extension.
+    pub version: SemanticVersion,
+    /// The capabilities of the extension.
     pub capabilities: Vec<Capability>,
     /// The import specifics.
     pub import: Option<ImportMethod>,
-    /// The file path to the resource.
+    /// The file path to the extension.
     pub path: PathBuf,
-    /// The description of the resource.
+    /// An optional message indicating the extension is deprecated.  If provided, the message will be shown when the extension is used.
+    pub deprecation_message: Option<String>,
+    /// The description of the extension.
     pub description: Option<String>,
-    // The directory path to the resource.
+    // The directory path to the extension.
     pub directory: PathBuf,
-    /// The author of the resource.
+    /// The author of the extension.
     pub author: Option<String>,
-    /// The manifest of the resource.
+    /// The manifest of the extension.
     pub manifest: Value,
 }
 
@@ -63,9 +65,10 @@ impl DscExtension {
     pub fn new() -> Self {
         Self {
             type_name: FullyQualifiedTypeName::default(),
-            version: String::new(),
+            version: SemanticVersion::default(),
             capabilities: Vec::new(),
             import: None,
+            deprecation_message: None,
             description: None,
             path: PathBuf::new(),
             directory: PathBuf::new(),

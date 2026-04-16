@@ -9,6 +9,7 @@ use dsc_lib::{
         dscresource::Invoke,
         invoke_result::{GetResult, SetResult},
     },
+    types::{FullyQualifiedTypeName, ResourceVersionReq},
     DscManager,
 };
 use rust_i18n::{i18n, t};
@@ -54,11 +55,18 @@ impl BicepExtension for BicepExtensionService {
             )
         );
 
+        let type_name = FullyQualifiedTypeName::parse(&resource_type)
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        let version_req = version.as_deref()
+            .map(|v| ResourceVersionReq::parse(&format!("={v}")))
+            .transpose()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         let mut dsc = DscManager::new();
         let Some(resource) = dsc
             .find_resource(&DiscoveryFilter::new(
-                &resource_type,
-                version.as_deref(),
+                &type_name,
+                version_req,
                 None,
             ))
             .unwrap_or(None)
@@ -109,11 +117,18 @@ impl BicepExtension for BicepExtensionService {
             )
         );
 
+        let type_name = FullyQualifiedTypeName::parse(&resource_type)
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        let version_req = version.as_deref()
+            .map(|v| ResourceVersionReq::parse(&format!("={v}")))
+            .transpose()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         let mut dsc = DscManager::new();
         let Some(resource) = dsc
             .find_resource(&DiscoveryFilter::new(
-                &resource_type,
-                version.as_deref(),
+                &type_name,
+                version_req,
                 None,
             ))
             .unwrap_or(None)
@@ -164,11 +179,18 @@ impl BicepExtension for BicepExtensionService {
             )
         );
 
+        let type_name = FullyQualifiedTypeName::parse(&resource_type)
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        let version_req = version.as_deref()
+            .map(|v| ResourceVersionReq::parse(&format!("={v}")))
+            .transpose()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         let mut dsc = DscManager::new();
         let Some(resource) = dsc
             .find_resource(&DiscoveryFilter::new(
-                &resource_type,
-                version.as_deref(),
+                &type_name,
+                version_req,
                 None,
             ))
             .unwrap_or(None)
@@ -191,7 +213,7 @@ impl BicepExtension for BicepExtensionService {
             resource: Some(proto::Resource {
                 r#type: resource_type,
                 api_version: version,
-                identifiers: identifiers,
+                identifiers,
                 properties: result.actual_state.to_string(),
                 status: None,
             }),
@@ -219,11 +241,18 @@ impl BicepExtension for BicepExtensionService {
             )
         );
 
+        let type_name = FullyQualifiedTypeName::parse(&resource_type)
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        let version_req = version.as_deref()
+            .map(|v| ResourceVersionReq::parse(&format!("={v}")))
+            .transpose()
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+
         let mut dsc = DscManager::new();
         let Some(resource) = dsc
             .find_resource(&DiscoveryFilter::new(
-                &resource_type,
-                version.as_deref(),
+                &type_name,
+                version_req,
                 None,
             ))
             .unwrap_or(None)
@@ -234,14 +263,14 @@ impl BicepExtension for BicepExtensionService {
         };
 
         resource
-            .delete(&identifiers)
+            .delete(&identifiers, &ExecutionKind::Actual)
             .map_err(|e| Status::aborted(e.to_string()))?;
 
         Ok(Response::new(LocalExtensibilityOperationResponse {
             resource: Some(proto::Resource {
                 r#type: resource_type,
                 api_version: version,
-                identifiers: identifiers,
+                identifiers,
                 properties: "{}".to_string(),
                 status: None,
             }),
@@ -338,9 +367,7 @@ async fn run_server(
         impl Connected for NamedPipeConnection {
             type ConnectInfo = ();
 
-            fn connect_info(&self) -> Self::ConnectInfo {
-                ()
-            }
+            fn connect_info(&self) -> Self::ConnectInfo {}
         }
 
         impl AsyncRead for NamedPipeConnection {

@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use rust_i18n::t;
 use windows::{
     core::*,
     Win32::Foundation::*,
@@ -15,22 +16,24 @@ pub fn handle_export(input: &str) -> Result<String> {
     // Parse optional filter input as UpdateList
     let update_list: UpdateList = if input.trim().is_empty() {
         UpdateList {
+            restart_required: None,
             updates: vec![UpdateInfo {
-                title: None,
-                id: None,
-                is_installed: None,
                 description: None,
+                id: None,
+                installation_behavior: None,
+                is_installed: None,
                 is_uninstallable: None,
                 kb_article_ids: None,
                 recommended_hard_disk_space: None,
                 msrc_severity: None,
                 security_bulletin_ids: None,
+                title: None,
                 update_type: None,
             }]
         }
     } else {
         serde_json::from_str(input)
-            .map_err(|e| Error::new(E_INVALIDARG, format!("Failed to parse input: {}", e)))?
+            .map_err(|e| Error::new(E_INVALIDARG, t!("export.failedParseInput", err = e.to_string())))?
     };
     
     let filters = &update_list.updates;
@@ -117,16 +120,14 @@ pub fn handle_export(input: &str) -> Result<String> {
                 }
 
                 // Filter by KB article IDs (match if any KB ID in the filter is present)
-                if let Some(kb_filter) = &filter.kb_article_ids {
-                    if !kb_filter.is_empty() {
-                        if let Some(ref kb_article_ids) = update_info.kb_article_ids {
-                            let kb_matches = kb_filter.iter().any(|filter_kb| {
-                                kb_article_ids.iter().any(|update_kb| update_kb.eq_ignore_ascii_case(filter_kb))
-                            });
-                            matches = matches && kb_matches;
-                        } else {
-                            matches = false;
-                        }
+                if let Some(kb_filter) = &filter.kb_article_ids && !kb_filter.is_empty() {
+                    if let Some(ref kb_article_ids) = update_info.kb_article_ids {
+                        let kb_matches = kb_filter.iter().any(|filter_kb| {
+                            kb_article_ids.iter().any(|update_kb| update_kb.eq_ignore_ascii_case(filter_kb))
+                        });
+                        matches = matches && kb_matches;
+                    } else {
+                        matches = false;
                     }
                 }
 
@@ -145,8 +146,8 @@ pub fn handle_export(input: &str) -> Result<String> {
                 }
 
                 // Filter by security bulletin IDs (match if any bulletin ID in the filter is present)
-                if let Some(bulletin_filter) = &filter.security_bulletin_ids {
-                    if !bulletin_filter.is_empty() {
+                if let Some(bulletin_filter) = &filter.security_bulletin_ids
+                    && !bulletin_filter.is_empty() {
                         if let Some(ref security_bulletin_ids) = update_info.security_bulletin_ids {
                             let bulletin_matches = bulletin_filter.iter().any(|filter_bulletin| {
                                 security_bulletin_ids.iter().any(|update_bulletin| update_bulletin.eq_ignore_ascii_case(filter_bulletin))
@@ -156,7 +157,6 @@ pub fn handle_export(input: &str) -> Result<String> {
                             matches = false;
                         }
                     }
-                }
 
                 // Filter by update type
                 if let Some(type_filter) = &filter.update_type {
@@ -191,38 +191,38 @@ pub fn handle_export(input: &str) -> Result<String> {
                     // Construct error message with filter criteria
                     let mut criteria_parts = Vec::new();
                     if let Some(title) = &filter.title {
-                        criteria_parts.push(format!("title '{}'", title));
+                        criteria_parts.push(t!("export.criteriaTitle", value = title).to_string());
                     }
                     if let Some(id) = &filter.id {
-                        criteria_parts.push(format!("id '{}'", id));
+                        criteria_parts.push(t!("export.criteriaId", value = id).to_string());
                     }
                     if let Some(is_installed) = filter.is_installed {
-                        criteria_parts.push(format!("is_installed {}", is_installed));
+                        criteria_parts.push(t!("export.criteriaIsInstalled", value = is_installed).to_string());
                     }
                     if let Some(description) = &filter.description {
-                        criteria_parts.push(format!("description '{}'", description));
+                        criteria_parts.push(t!("export.criteriaDescription", value = description).to_string());
                     }
                     if let Some(is_uninstallable) = filter.is_uninstallable {
-                        criteria_parts.push(format!("is_uninstallable {}", is_uninstallable));
+                        criteria_parts.push(t!("export.criteriaIsUninstallable", value = is_uninstallable).to_string());
                     }
                     if let Some(kb_ids) = &filter.kb_article_ids {
-                        criteria_parts.push(format!("kb_article_ids {:?}", kb_ids));
+                        criteria_parts.push(t!("export.criteriaKbArticleIds", value = format!("{:?}", kb_ids)).to_string());
                     }
                     if let Some(space) = filter.recommended_hard_disk_space {
-                        criteria_parts.push(format!("recommended_hard_disk_space {}", space));
+                        criteria_parts.push(t!("export.criteriaRecommendedHardDiskSpace", value = space).to_string());
                     }
                     if let Some(severity) = &filter.msrc_severity {
-                        criteria_parts.push(format!("msrc_severity {:?}", severity));
+                        criteria_parts.push(t!("export.criteriaMsrcSeverity", value = format!("{:?}", severity)).to_string());
                     }
                     if let Some(bulletin_ids) = &filter.security_bulletin_ids {
-                        criteria_parts.push(format!("security_bulletin_ids {:?}", bulletin_ids));
+                        criteria_parts.push(t!("export.criteriaSecurityBulletinIds", value = format!("{:?}", bulletin_ids)).to_string());
                     }
                     if let Some(update_type) = &filter.update_type {
-                        criteria_parts.push(format!("update_type {:?}", update_type));
+                        criteria_parts.push(t!("export.criteriaUpdateType", value = format!("{:?}", update_type)).to_string());
                     }
                     
                     let criteria_str = criteria_parts.join(", ");
-                    let error_msg = format!("No matching update found for filter {}: {}", filter_index, criteria_str);
+                    let error_msg = t!("export.noMatchingUpdateForFilter", index = filter_index, criteria = criteria_str).to_string();
                     
                     // Emit JSON error to stderr
                     eprintln!("{{\"error\":\"{}\"}}", error_msg);
@@ -245,10 +245,11 @@ pub fn handle_export(input: &str) -> Result<String> {
     match result {
         Ok(updates) => {
             let result = UpdateList {
+                restart_required: None,
                 updates
             };
             serde_json::to_string(&result)
-                .map_err(|e| Error::new(E_FAIL, format!("Failed to serialize output: {}", e)))
+                .map_err(|e| Error::new(E_FAIL, t!("export.failedSerializeOutput", err = e.to_string())))
         }
         Err(e) => Err(e),
     }
@@ -299,15 +300,13 @@ fn matches_wildcard(text: &str, pattern: &str) -> bool {
             }
         }
     }
-    
+
     // For the last part, check if it should be at the end
-    if !ends_with_wildcard && !parts.is_empty() {
-        if let Some(last_part) = parts.last() {
-            if !last_part.is_empty() && !text_lower.ends_with(last_part) {
-                return false;
-            }
+    if !ends_with_wildcard && !parts.is_empty()
+        && let Some(last_part) = parts.last()
+        && !last_part.is_empty() && !text_lower.ends_with(last_part) {
+            return false;
         }
-    }
-    
+
     true
 }

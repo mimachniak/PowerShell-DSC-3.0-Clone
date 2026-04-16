@@ -118,7 +118,7 @@ class PSClassResource {
       New-Item -Path $modulePath -ItemType File -Value $module -Force | Out-Null
     }
 
-    ## Add script base Classs for testing
+    ## Add script base Classs for testing and credential object
 
     $moduleFileScriptRootPSD1 = @"
 @{
@@ -231,16 +231,14 @@ class PSClassResource {
         )
         Write-Verbose "[TEST]Checking credentials"
         Write-Verbose "[TEST]Checking credentials UserName:  $($Credential.UserName)"
-        Write-Verbose "[TEST]Checking credentials Password:  $($Credential.Password)"
+        Write-Verbose "[TEST]Checking credentials Password:  <redacted>"
 
       if ($null -eq $Credential) {
-              throw 'Credential property is required'
               $inDesiredState = $false
               return $false
             }
 
         if ($Credential.UserName -ne 'MyUser') {
-                throw 'Invalid user name'
                 $inDesiredState = $false
         } else {
                 $inDesiredState = $true
@@ -265,13 +263,11 @@ class PSClassResource {
         )
 
           if ($null -eq $Credential) {
-              throw 'Credential property is required'
               $inDesiredState = $false
               return $false
             }
 
             if ($Credential.UserName -ne 'MyUser') {
-                    throw 'Invalid user name'
                     $inDesiredState = $false
             } else {
                     $inDesiredState = $true
@@ -291,37 +287,45 @@ class PSClassResource {
         [Key] string Name;
         [Required, Description("Test Credentials for Script Base"), EmbeddedInstance("MSFT_Credential")] String Credential;
     };
-
 "@
 
+    $ProgramFileModule = "$env:ProgramFiles\WindowsPowerShell\Modules"
 
-
-    $modulePathRootPSM1 = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psm1'
+    $modulePathRootPSM1 = Join-Path $ProgramFileModule 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psm1'
         if (-not (Test-Path -Path $modulePathRootPSM1)) {
         New-Item -Path $modulePathRootPSM1 -ItemType File -Value $moduleScriptRootPSM1 -Force | Out-Null
     }
 
 
-    $modulePathRootPSD1 = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psd1'
+    $modulePathRootPSD1 = Join-Path $ProgramFileModule 'TestScriptBaseDSC' '0.0.1' 'TestScriptBaseDSC.psd1'
         if (-not (Test-Path -Path $modulePathRootPSD1)) {
         New-Item -Path $modulePathRootPSD1 -ItemType File -Value $moduleFileScriptRootPSD1 -Force | Out-Null
     }
 
 
-    $modulePathScriptCredentialValidationPSM1 = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.psm1'
+    $modulePathScriptCredentialValidationPSM1 = Join-Path $ProgramFileModule 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.psm1'
     if (-not (Test-Path -Path $modulePathScriptCredentialValidationPSM1)) {
-        Write-Host "File will be created: $modulePathScriptCredentialValidationPSM1"
+        #Write-Host "File will be created: $modulePathScriptCredentialValidationPSM1"
         New-Item -Path $modulePathScriptCredentialValidationPSM1 -ItemType File -Value $moduleScriptCredentialValidationPSM1 -Force | Out-Null
     }
 
-    $modulePathScriptCredentialValidationSchemaMof = Join-Path $windowsPowerShellPath 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.schema.mof'
+    $modulePathScriptCredentialValidationSchemaMof = Join-Path $ProgramFileModule 'TestScriptBaseDSC' '0.0.1' 'DSCResources' 'CredentialValidation' 'CredentialValidation.schema.mof'
     if (-not (Test-Path -Path $modulePathScriptCredentialValidationSchemaMof)) {
-        Write-Host "File will be created: $modulePathScriptCredentialValidationSchemaMof"
+        #Write-Host "File will be created: $modulePathScriptCredentialValidationSchemaMof"
         New-Item -Path $modulePathScriptCredentialValidationSchemaMof -ItemType File -Value $moduleScriptCredentialValidationSchemaMof -Force | Out-Null
     }
 
-    $env:PSModulePath = $windowsPowerShellPath + [System.IO.Path]::PathSeparator + $env:PSModulePath + [System.IO.Path]::PathSeparator
+    $env:PSModulePath = $windowsPowerShellPath + [System.IO.Path]::PathSeparator + $env:PSModulePath + [System.IO.Path]::PathSeparator + $ProgramFileModule
+    
+    #Remove-Item "$env:LOCALAPPDATA\dsc\WindowsPSAdapterCache.json" -Force -ErrorAction SilentlyContinue
+
+    #Invoke-DscCacheRefresh -Module "TestScriptBaseDSC"
+
+    #$DscResource = Get-DscResource
+    #write-host "Available DSC Resources: $($DscResource.Name -join ', ')"
+
   }
+
 
   AfterAll {
     $env:PSModulePath = $OldPSModulePath
@@ -368,15 +372,15 @@ resources:
 
   It 'Config works with credential object' {
   $yaml = @'
-   $schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
-   resources:
-     - name: Cred test
-       type: PSClassResource/PSClassResource
-       properties:
-         Name: Test
-         Credential:
-           UserName: 'MyUser'
-           Password: 'MyPassword'
+$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+resources:
+  - name: Cred test
+    type: PSClassResource/PSClassResource
+    properties:
+      Name: Test
+      Credential:
+        UserName: 'MyUser'
+        Password: 'MyPassword'
 '@
 
     $out = dsc -l debug config set -i $yaml 2> "$testdrive/error.log" | ConvertFrom-Json
@@ -402,7 +406,7 @@ resources:
     (Get-Content -Path "$testdrive/error.log" -Raw) | Should -BeLike "*ERROR*Credential object 'Credential' requires both 'username' and 'password' properties*" -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
   }
 
-  ## Scipt base resources test running
+  ## Script base resources test running
 
 It 'Config works with credential object Script base resources' {
 
@@ -420,17 +424,18 @@ resources:
       properties:
         Name: TestScriptResource1
         Credential:       
-           username: MyUser
-           password: Password
+           UserName: MyUser
+           Password: Password
 '@
 
 $out = dsc -l trace config test -i $yaml 2>"$testdrive/error.log" | ConvertFrom-Json
-$LASTEXITCODE | Should -Be 0 -Because ($out.results[0].result.inDesiredState | Should -Be $inDesiredState)
+$LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
+$out.results[0].result.inDesiredState | Should -Be $inDesiredState
 }
 
 
 # This works
-It 'Not Valide credentials with Script base resources - wrong properties' {
+It 'Not Valid credentials with Script base resources - wrong properties' {
 
 
 $yaml = @'
@@ -482,11 +487,61 @@ $out | Should -BeNullOrEmpty
   }
 
   It 'Export works with class-based PS DSC resources' {
-    $out = dsc resource export -r PSClassResource/PSClassResource 2> "$testdrive/error.log" | ConvertFrom-Json
+    $out = dsc -l trace resource export -r PSClassResource/PSClassResource 2> "$testdrive/error.log" | ConvertFrom-Json
     $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Path "$testdrive/error.log" -Raw | Out-String)
     $out | Should -Not -BeNullOrEmpty
     $out.resources.count | Should -Be 5
     $out.resources[0].properties.Ensure | Should -Be 'Present' # Check for enum property
   }
-}
 
+  It 'Config calling PS Resource directly works for <operation> with metadata <metadata> and adapter <adapter>' -TestCases @(
+    @{ Operation = 'get'; directive = 'requireAdapter: '; adapter = 'Microsoft.Windows/WindowsPowerShell' }
+    @{ Operation = 'set'; directive = 'requireAdapter: '; adapter = 'Microsoft.Windows/WindowsPowerShell' }
+    @{ Operation = 'test'; directive = 'requireAdapter: '; adapter = 'Microsoft.Windows/WindowsPowerShell' }
+    @{ Operation = 'get'; directive = 'requireAdapter: '; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
+    @{ Operation = 'set'; directive = 'requireAdapter: '; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
+    @{ Operation = 'test'; directive = 'requireAdapter: '; adapter = 'Microsoft.Adapter/WindowsPowerShell' }
+    @{ Operation = 'get'; directive = ''; adapter = '' }
+    @{ Operation = 'set'; directive = ''; adapter = '' }
+    @{ Operation = 'test'; directive = ''; adapter = '' }
+  ) {
+    param($Operation, $directive, $adapter)
+
+    $yaml = @"
+            `$schema: https://aka.ms/dsc/schemas/v3/bundled/config/document.json
+            resources:
+            - name: Class-resource Info
+              type: PSClassResource/PSClassResource
+              directives:
+                $directive$adapter
+              properties:
+                Name: TestInstance
+                Credential:
+                  UserName: 'MyUser'
+                  Password: 'MyPassword'
+"@
+    $out = dsc -l trace config $operation -i $yaml 2> $TestDrive/tracing.txt
+    $text = $out | Out-String
+    $out = $out | ConvertFrom-Json
+    $LASTEXITCODE | Should -Be 0 -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
+    switch ($Operation) {
+      'get' {
+        $out.results[0].result.actualState.Name | Should -BeExactly 'TestInstance' -Because ("$text`n" + (Get-Content -Raw -Path $TestDrive/tracing.txt))
+      }
+      'set' {
+        $out.results[0].result.beforeState.Name | Should -BeExactly 'TestInstance' -Because $text
+        if ($adapter -eq 'Microsoft.Adapter/WindowsPowerShell') {
+          # the `single` mode of the adapter performs a `get` after `set` and returns that result so we can validate it
+          $out.results[0].result.afterState.Name | Should -BeExactly 'TestInstance' -Because $text
+        }
+      }
+      'test' {
+        $out.results[0].result.inDesiredState | Should -BeTrue -Because $text
+      }
+    }
+    if ($directive -eq 'requireAdapter: ') {
+      "$TestDrive/tracing.txt" | Should -FileContentMatch "Invoking $Operation for '$adapter'" -Because (Get-Content -Raw -Path $TestDrive/tracing.txt)
+
+    }
+  }
+}

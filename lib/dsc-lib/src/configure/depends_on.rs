@@ -10,7 +10,7 @@ use crate::types::FullyQualifiedTypeName;
 use rust_i18n::t;
 use serde_json::{Map, Value};
 use super::context::Context;
-use tracing::debug;
+use tracing::{debug, warn};
 
 /// Gets the invocation order of resources based on their dependencies
 ///
@@ -37,8 +37,8 @@ pub fn get_resource_invocation_order(config: &Configuration, parser: &mut Statem
         let mut dependency_already_in_order = true;
         // Skip dependency validation for copy loop resources here - it will be handled in unroll_and_push
         // where the copy context is properly set up for copyIndex() expressions in dependsOn
-        if resource.copy.is_none() {
-            if let Some(depends_on) = resource.depends_on.clone() {
+        if resource.copy.is_none()
+            && let Some(depends_on) = resource.depends_on.clone() {
                 for dependency in depends_on {
                     let statement = parser.parse_and_execute(&dependency, context)?;
                     let Some(string_result) = statement.as_str() else {
@@ -62,7 +62,6 @@ pub fn get_resource_invocation_order(config: &Configuration, parser: &mut Statem
                     dependency_already_in_order = false;
                 }
             }
-        }
 
         if order.iter().any(|r| r.name == resource.name && r.resource_type == resource.resource_type) {
             // if dependencies were already in the order, then this might be a circular dependency
@@ -141,6 +140,7 @@ fn unroll_and_push(order: &mut Vec<Resource>, resource: &Resource, parser: &mut 
   // if the resource contains `Copy`, unroll it
   if let Some(copy) = &resource.copy {
       debug!("{}", t!("configure.mod.unrollingCopy", name = &copy.name, count = copy.count));
+      warn!("{}", t!("configure.mod.copyDeprecated", name = &copy.name));
       context.process_mode = ProcessMode::Copy;
       context.copy_current_loop_name.clone_from(&copy.name);
       let mut copy_resources = Vec::<Resource>::new();
@@ -214,7 +214,7 @@ fn unroll_and_push(order: &mut Vec<Resource>, resource: &Resource, parser: &mut 
                   other: Map::new(),
               }
           });
-          
+
           let mut microsoft = metadata.microsoft.clone().unwrap_or_default();
           let mut copy_loops = microsoft.copy_loops.clone().unwrap_or_default();
           copy_loops.insert(copy.name.clone(), Value::Number(i.into()));
