@@ -48,6 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - name: Install prerequisites
         run: ./build.ps1 -SkipBuild -Clippy  -Verbose
       - name: Build
@@ -70,6 +72,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
@@ -90,6 +94,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - name: Install prerequisites
         run: ./build.ps1 -SkipBuild -Clippy  -Verbose
       - name: Build
@@ -112,6 +118,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
@@ -136,6 +144,8 @@ jobs:
         run: |
           "$env:LOCALAPPDATA\\Microsoft\\WinGet\\Links" | Out-File -Append -Encoding utf8 -FilePath $env:GITHUB_PATH
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - name: Install prerequisites
         run: ./build.ps1 -SkipBuild -Clippy  -Verbose
       - name: Build
@@ -160,6 +170,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
